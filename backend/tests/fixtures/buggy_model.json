@@ -1,0 +1,35 @@
+{
+  "variables": [
+    {"name": "status", "type": "enum", "values": ["Created", "Approved", "Cancelled", "Executed"]},
+    {"name": "approved", "type": "boolean"},
+    {"name": "cancelled", "type": "boolean"}
+  ],
+  "initial": {"status": "Created", "approved": false, "cancelled": false},
+  "transitions": [
+    {
+      "name": "Approve",
+      "guard": {"eq": [{"var": "status"}, "Created"]},
+      "effects": [{"set": ["status", "Approved"]}, {"set": ["approved", true]}]
+    },
+    {
+      "name": "Cancel",
+      "guard": {"in": [{"var": "status"}, ["Created", "Approved"]]},
+      "effects": [{"set": ["status", "Cancelled"]}, {"set": ["cancelled", true]}]
+    },
+    {
+      "name": "Execute",
+      "guard": {"eq": [{"var": "approved"}, true]},
+      "effects": [{"set": ["status", "Executed"]}]
+    }
+  ],
+  "properties": [
+    {
+      "name": "NoExecutedAfterCancel",
+      "type": "forbidden_state",
+      "expression": {"and": [
+        {"eq": [{"var": "status"}, "Executed"]},
+        {"eq": [{"var": "cancelled"}, true]}
+      ]}
+    }
+  ]
+}
