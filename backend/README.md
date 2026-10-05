@@ -3,13 +3,22 @@
 `POST /api/analyze` принимает текст требований, строит `BehavioralModel` через
 `AnalystAgent`, проверяет её существующим Model Checker и возвращает модель,
 `VerificationResult`, контрпример и объяснение. Провайдер задаётся интерфейсом
-`LLMProvider`; сейчас подключён `FakeLLMProvider`, который не использует сеть и
-API-ключи. Впоследствии его можно заменить адаптером внешнего LLM-сервиса.
+`LLMProvider`. Доступны `FakeLLMProvider` для локальных тестов без сети и
+`OpenRouterProvider` для работы с внешней моделью через HTTPS. Формальную
+проверку в обоих случаях выполняет только TLC.
 
 `FakeLLMProvider` поддерживает только демонстрационный сценарий заявки с отменой.
 По умолчанию он возвращает модель с ошибкой: `Cancel` сохраняет `approved = true`.
 Если в тексте явно указать `approved = false`, провайдер добавит исправляющий
 эффект в `Cancel`. Для других предметных областей API возвращает HTTP 422.
+
+Провайдер выбирается переменной `LLM_PROVIDER`: `fake` по умолчанию или
+`openrouter`. `OpenRouterProvider` читает `OPENROUTER_API_KEY` и
+`OPENROUTER_MODEL` из переменных окружения либо из локального `backend/.env`;
+переменные окружения имеют приоритет. Файл `.env` исключён из Git. Для
+бесплатного роутера можно задать `OPENROUTER_MODEL=openrouter/free`. У OpenRouter
+запрашивается JSON-объект, который затем проходит проверку Pydantic и валидатора
+`BehavioralModel`. Невалидный ответ или ошибка OpenRouter возвращают HTTP 502.
 
 Backend проверяет конечную `BehavioralModel`, генерирует модуль TLA+ и конфигурацию
 TLC, запускает TLC через Java и возвращает структурированный `VerificationResult`.
@@ -20,7 +29,7 @@ TLC, запускает TLC через Java и возвращает структ
 непустые печатные ASCII-строки. Для `integer` нужны включительные границы `min`
 и `max`.
 
-Для запуска требуются Python 3.11+, Pydantic v2, FastAPI, Uvicorn, Java и
+Для запуска требуются Python 3.11+, Pydantic v2, FastAPI, Uvicorn, HTTPX, Java и
 `tla2tools.jar` из TLA+ Tools. Пути и ограничения задаются переменными окружения:
 
 - `MODEL_CHECKER_JAVA` — команда `java` или путь к исполняемому файлу;
@@ -61,6 +70,10 @@ $env:MODEL_CHECKER_TLA2TOOLS_JAR = (Resolve-Path '.tools/tla2tools.jar').Path
 $env:MODEL_CHECKER_TEMP_DIR = (Resolve-Path '.tools').Path
 python -m uvicorn api.main:app
 ```
+
+Для реального OpenRouter перед запуском API установите в этом сеансе
+`$env:LLM_PROVIDER = 'openrouter'`. Ключ и модель могут оставаться в `.env`;
+их значения не нужно добавлять в командную строку или исходный код.
 
 `GET /health` возвращает `{"status":"ok"}`. Пример запроса к
 `POST /api/analyze`:
