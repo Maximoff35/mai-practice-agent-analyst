@@ -1,8 +1,11 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 type RequirementsInputProps = {
   value: string;
   onChange: (value: string) => void;
+  action?: ReactNode;
 };
 
 const MAX_LENGTH = 4000;
@@ -10,15 +13,19 @@ const MAX_LENGTH = 4000;
 export default function RequirementsInput({
   value,
   onChange,
+  action,
 }: RequirementsInputProps) {
   return (
     <div className="flex flex-col gap-2">
-      <label
-        htmlFor="requirements"
-        className="text-sm font-medium text-foreground/80"
-      >
-        Описание поведения системы
-      </label>
+      <div className="flex items-center justify-between gap-4">
+        <label
+          htmlFor="requirements"
+          className="text-sm font-medium text-foreground/80"
+        >
+          Описание поведения системы
+        </label>
+        {action}
+      </div>
 
       <textarea
         id="requirements"

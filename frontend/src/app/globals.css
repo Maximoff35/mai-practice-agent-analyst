@@ -26,6 +26,10 @@ body {
   font-family: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
+button:not(:disabled) {
+  cursor: pointer;
+}
+
 .console-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--accent) 45%, transparent) transparent;
