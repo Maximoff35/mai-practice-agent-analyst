@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --background: #050806;
+  --foreground: #3aa661;
+  --panel: #071009;
+  --input: #060e0a;
+  --accent: #42d97c;
+  --accent-strong: #5fe894;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-panel: var(--panel);
+  --color-input: var(--input);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --font-sans: var(--font-jetbrains);
+  --font-mono: var(--font-jetbrains);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
+.console-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 45%, transparent) transparent;
+}
+
+.console-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.console-scrollbar::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  border-radius: 9999px;
+}
+
+.console-scrollbar::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  border-right: 6px solid transparent;
+  background-clip: padding-box;
+}
+
+.console-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
+  background-clip: padding-box;
+}
