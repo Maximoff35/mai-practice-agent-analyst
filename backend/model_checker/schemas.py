@@ -62,5 +62,5 @@ class Property(StrictModel):
 class BehavioralModel(StrictModel):
     variables: list[Variable] = Field(min_length=1)
     initial: dict[Identifier, Any]
-    transitions: list[Transition]
+    transitions: list[Transition] = Field(min_length=1)
     properties: list[Property] = Field(min_length=1)

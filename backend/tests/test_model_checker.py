@@ -115,6 +115,13 @@ def test_transition_effects_must_not_be_empty(buggy_model):
         validate_model(buggy_model)
 
 
+def test_transitions_must_not_be_empty(buggy_model):
+    buggy_model["transitions"] = []
+
+    with pytest.raises(ValidationError, match="too_short"):
+        validate_model(buggy_model)
+
+
 def test_bounded_integer_domain_and_effect(buggy_model):
     buggy_model["variables"].append({"name": "count", "type": "integer", "min": 0, "max": 2})
     buggy_model["initial"]["count"] = 0
