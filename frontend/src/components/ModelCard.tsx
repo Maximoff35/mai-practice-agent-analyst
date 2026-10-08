@@ -107,20 +107,6 @@ export default function ModelCard({ model }: { model: BehavioralModel }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold text-accent">Проверяемые свойства</h3>
-        <ul className="flex flex-col gap-0.5 text-sm text-foreground/70">
-          {model.properties.map((property) => (
-            <li key={property.name} className="flex items-center gap-2">
-              <span className="text-foreground/40">▪ </span>
-              {property.name}
-              <span className="text-xs text-foreground/40">
-                ({property.type})
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
     </section>
   );
 }

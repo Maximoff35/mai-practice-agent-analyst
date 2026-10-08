@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import RequirementsInput from "@/components/RequirementsInput";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ModelCard, { ModelCardSkeleton } from "@/components/ModelCard";
+import PropertyCard from "@/components/PropertyCard";
 import { analyzeRequirements } from "@/lib/api";
 import type { AnalysisResult } from "@/lib/types";
 
@@ -166,6 +167,10 @@ export default function Home() {
         <ModelCardSkeleton />
       ) : (
         result && <ModelCard model={result.behavioral_model} />
+      )}
+
+      {result && formState !== "loading" && (
+        <PropertyCard properties={result.behavioral_model.properties} />
       )}
 
       {confirmingExample && (
