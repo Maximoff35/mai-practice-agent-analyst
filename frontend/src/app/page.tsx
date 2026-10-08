@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import RequirementsInput from "@/components/RequirementsInput";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ModelCard, { ModelCardSkeleton } from "@/components/ModelCard";
 import { analyzeRequirements } from "@/lib/api";
 import type { AnalysisResult } from "@/lib/types";
 
@@ -19,6 +20,7 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [confirmingExample, setConfirmingExample] = useState(false);
+  const [editing, setEditing] = useState(true);
 
   function handleExampleClick() {
     if (requirements.trim()) {
@@ -50,6 +52,7 @@ export default function Home() {
       const analysis = await analyzeRequirements(trimmed);
       setResult(analysis);
       setFormState("success");
+      setEditing(false);
     } catch {
       setFormState("error");
       setErrorMessage("Не удалось выполнить анализ. Попробуйте ещё раз.");
@@ -73,74 +76,97 @@ export default function Home() {
         </p>
       </header>
 
-      <section className="flex flex-col gap-4 p-6">
-<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <RequirementsInput
-            value={requirements}
-            onChange={setRequirements}
-            action={
+{editing ? (
+        <section className="flex flex-col gap-4 p-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <RequirementsInput
+              value={requirements}
+              onChange={setRequirements}
+              action={
+                <button
+                  type="button"
+                  onClick={handleExampleClick}
+                  disabled={formState === "loading"}
+                  className="rounded-xl border border-foreground/20 px-4 py-2.5 text-sm text-foreground/60 transition-colors duration-300 hover:border-accent/50 hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Подставить пример
+                </button>
+              }
+            />
+
+            <div className="flex flex-wrap items-center gap-3">
               <button
-                type="button"
-                onClick={handleExampleClick}
-                disabled={formState === "loading"}
-                className="rounded-xl border border-foreground/20 px-4 py-2.5 text-sm text-foreground/60 transition-colors duration-300 hover:border-accent/50 hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+                type="submit"
+                disabled={formState === "loading" || !requirements.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-accent/60 bg-accent/10 px-6 py-2.5 text-sm font-medium text-accent transition-colors duration-300 hover:bg-accent/20 disabled:cursor-not-allowed disabled:border-accent/25 disabled:bg-transparent disabled:text-accent/30"
               >
-                Подставить пример
+                {formState === "loading" ? (
+                  <>
+                    <svg
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      aria-hidden="true"
+                      className="h-4 w-4 animate-spin"
+                    >
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="opacity-25"
+                      />
+                      <path
+                        d="M14 8a6 6 0 0 0-6-6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    Анализируем…
+                  </>
+                ) : (
+                  "Проанализировать"
+                )}
               </button>
-            }
-          />
+            </div>
+          </form>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="submit"
-              disabled={formState === "loading" || !requirements.trim()}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-accent/60 bg-accent/10 px-6 py-2.5 text-sm font-medium text-accent transition-colors duration-300 hover:bg-accent/20 disabled:cursor-not-allowed disabled:border-accent/25 disabled:bg-transparent disabled:text-accent/30"
-            >
-              {formState === "loading" ? (
-                <>
-                  <svg
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    aria-hidden="true"
-                    className="h-4 w-4 animate-spin"
-                  >
-                    <circle
-                      cx="8"
-                      cy="8"
-                      r="6"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      className="opacity-25"
-                    />
-                    <path
-                      d="M14 8a6 6 0 0 0-6-6"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  Анализируем…
-                </>
-              ) : (
-                "Проанализировать"
-              )}
-            </button>
+          {formState === "error" && errorMessage && (
+            <p className="text-sm text-red-400/90" role="alert">
+              {errorMessage}
+            </p>
+          )}
+        </section>
+      ) : (
+        <section className="flex flex-col gap-4 p-6">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-accent/60 bg-accent/10 px-6 py-2.5 text-sm font-medium text-accent transition-colors duration-300 hover:bg-accent/20"
+          >
+            <span aria-hidden="true" className="text-base leading-none">
+              +
+            </span>
+            Новая модель
+          </button>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-foreground/80">
+              Описание поведения системы
+            </span>
+            <p className="console-scrollbar max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-foreground/15 bg-transparent px-4 py-3 pr-6 text-sm leading-relaxed text-foreground/75">
+              {result?.requirements ?? requirements}
+            </p>
           </div>
-        </form>
+        </section>
+      )}
 
-        {formState === "error" && errorMessage && (
-          <p className="text-sm text-red-400/90" role="alert">
-            {errorMessage}
-          </p>
-        )}
-
-{formState === "success" && result && (
-          <p className="text-sm text-foreground/50">
-            Анализ завершён — далее будет отображаться модель и результат
-            проверки.
-          </p>
-        )}
-      </section>
+      {formState === "loading" ? (
+        <ModelCardSkeleton />
+      ) : (
+        result && <ModelCard model={result.behavioral_model} />
+      )}
 
       {confirmingExample && (
         <ConfirmDialog
