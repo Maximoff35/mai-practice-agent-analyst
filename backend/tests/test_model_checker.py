@@ -3,7 +3,12 @@ from copy import deepcopy
 import pytest
 from pydantic import ValidationError
 
-from model_checker import ModelValidationError, compile_expression, generate_tla, validate_model
+from model_checker import (
+    ModelValidationError,
+    compile_expression,
+    generate_tla,
+    validate_model,
+)
 
 
 def test_acceptance_fixtures_validate(buggy_model, fixed_model):
@@ -67,6 +72,7 @@ def test_expression_compiler(expression, expected):
         (lambda m: m["transitions"][0]["effects"].append({"set": ["cancelled", "Created"]}), "wrong type"),
         (lambda m: m["transitions"][0]["effects"].append({"set": ["cancelled", 1]}), "wrong type"),
         (lambda m: m["transitions"][0]["effects"].append({"set": ["cancelled", {"var": "status"}]}), "wrong type"),
+        (lambda m: m["transitions"][0]["effects"].append({"set": ["cancelled", {"var": "missing"}]}), "unknown variable",),
         (lambda m: m["transitions"][0]["effects"][0]["set"].__setitem__(1, "Unknown"), "outside target domain"),
         (lambda m: m["properties"][0].update(expression={"var": "ghost"}), "unknown variable"),
         (lambda m: m["properties"][0].update(expression={"xor": [True, False]}), "unsupported operator"),
@@ -76,6 +82,36 @@ def test_expression_compiler(expression, expected):
 def test_invalid_models(buggy_model, change, message):
     change(buggy_model)
     with pytest.raises((ModelValidationError, ValidationError), match=message):
+        validate_model(buggy_model)
+
+
+def test_duplicate_property_names_are_rejected(buggy_model):
+    buggy_model["properties"].append(deepcopy(buggy_model["properties"][0]))
+
+    with pytest.raises(ModelValidationError, match="duplicate property name"):
+        validate_model(buggy_model)
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        (lambda m: m["transitions"][0].update(guard="not a predicate"), "expected one expression operator"),
+        (lambda m: m["transitions"][0].update(guard={"eq": [True]}), "eq requires two operands"),
+        (lambda m: m["properties"][0].update(expression={"and": [True]}), "and requires at least two predicates"),
+        (lambda m: m["properties"][0].update(expression={"not": {"var": "status"}}), "must be boolean"),
+    ],
+)
+def test_transitions_and_properties_require_boolean_expressions(buggy_model, change, message):
+    change(buggy_model)
+
+    with pytest.raises(ModelValidationError, match=message):
+        validate_model(buggy_model)
+
+
+def test_transition_effects_must_not_be_empty(buggy_model):
+    buggy_model["transitions"][0]["effects"] = []
+
+    with pytest.raises(ValidationError, match="too_short"):
         validate_model(buggy_model)
 
 
