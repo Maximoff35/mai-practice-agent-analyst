@@ -122,6 +122,14 @@ def test_transitions_must_not_be_empty(buggy_model):
         validate_model(buggy_model)
 
 
+def test_model_with_one_transition_is_valid(buggy_model):
+    buggy_model["transitions"] = buggy_model["transitions"][:1]
+
+    model = validate_model(buggy_model)
+
+    assert len(model.transitions) == 1
+
+
 def test_bounded_integer_domain_and_effect(buggy_model):
     buggy_model["variables"].append({"name": "count", "type": "integer", "min": 0, "max": 2})
     buggy_model["initial"]["count"] = 0
