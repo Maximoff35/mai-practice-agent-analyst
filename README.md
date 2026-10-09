@@ -89,6 +89,10 @@ npm run build
 [архитектура](docs/predefense/architecture.md) и
 [состояние прототипа](docs/predefense/prototype.md).
 
+[План проекта, milestones и исполнители](docs/roadmap.md): ближайший этап
+включает подключение предоставленного API LLM МАИ и оценку формализации.
+Интеграция API МАИ пока запланирована; текущие провайдеры — fake и OpenRouter.
+
 Поддерживаются конечные модели с `enum`, `boolean`, ограниченными `integer`
 и свойства `invariant`, `forbidden_state`. `reachable`, `deadlock_free`,
 ссылки на исходные требования и диалог уточнений ещё не реализованы.
