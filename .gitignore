@@ -8,3 +8,9 @@ venv/
 node_modules/
 dist/
 build/
+/backend/.tools/
+.pytest_cache/
+.local/
+
+t.txt
+docs/frontend-plan.md
