@@ -5,7 +5,8 @@
 ```mermaid
 sequenceDiagram
     actor U as User
-    participant F as Frontend (внешний)
+    participant F as Frontend (Next.js)
+    participant PX as Серверный маршрут Next.js
     participant API as FastAPI
     participant A as Analyst Agent
     participant P as LLMProvider / OpenRouterProvider
@@ -20,7 +21,8 @@ sequenceDiagram
     participant VR as VerificationResult (данные)
 
     U->>F: Текст требования
-    F->>API: POST /api/analyze {requirements}
+    F->>PX: POST /api/analyze {requirements}
+    PX->>API: Передать запрос FastAPI
     API->>A: analyze(requirements)
     A->>P: build_model(requirements)
     P->>L: Инструкция DSL и текст, запрос JSON
@@ -56,7 +58,8 @@ sequenceDiagram
     L-->>P: Объяснение на русском
     P-->>A: explanation
     A-->>API: AnalysisResult
-    API-->>F: HTTP 200, модель, результат, контрпример, объяснение
+    API-->>PX: HTTP 200, модель, результат, контрпример, объяснение
+    PX-->>F: Передать JSON и HTTP-статус
     F-->>U: Показ результата
 ```
 

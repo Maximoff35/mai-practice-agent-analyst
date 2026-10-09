@@ -6,6 +6,7 @@ type RequirementsInputProps = {
   value: string;
   onChange: (value: string) => void;
   action?: ReactNode;
+  disabled?: boolean;
 };
 
 const MAX_LENGTH = 4000;
@@ -14,6 +15,7 @@ export default function RequirementsInput({
   value,
   onChange,
   action,
+  disabled = false,
 }: RequirementsInputProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -30,6 +32,7 @@ export default function RequirementsInput({
       <textarea
         id="requirements"
         value={value}
+        disabled={disabled}
         maxLength={MAX_LENGTH}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Например: заявку согласовывают, затем отменяют, но система всё равно позволяет её исполнить. Опишите участников, состояния, события и правила переходов обычным текстом."

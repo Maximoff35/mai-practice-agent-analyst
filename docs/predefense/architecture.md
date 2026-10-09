@@ -1,6 +1,6 @@
 # Архитектура системы
 
-Система состоит из внешнего Frontend, backend на FastAPI, Analyst Agent и детерминированного Model Checker. Backend обрабатывает запрос последовательно; TLC запускается отдельным Java-процессом. Frontend разрабатывается отдельно, его подключение к backend — следующий этап интеграции.
+Система состоит из Frontend на Next.js, backend на FastAPI, Analyst Agent и детерминированного Model Checker. Frontend подключён к API через серверный маршрут Next.js. Backend обрабатывает запрос последовательно; TLC запускается отдельным Java-процессом.
 
 ## Разделение ответственности
 
@@ -14,8 +14,9 @@
 
 ```mermaid
 flowchart TB
-    U[Пользователь] <--> F[Frontend — внешний компонент]
-    F <-->|HTTP| API[FastAPI]
+    U[Пользователь] <--> F[Frontend — Next.js]
+    F <-->|POST /api/analyze| PROXY[Серверный маршрут Next.js]
+    PROXY <-->|HTTP| API[FastAPI]
     API <--> AG[Analyst Agent]
     subgraph A[Интерпретация и объяснение]
         P[LLMProvider]
@@ -48,7 +49,8 @@ flowchart TB
 
 | Компонент | Ответственность |
 | --- | --- |
-| Frontend | Ввод требований и отображение результата; разрабатывается отдельно |
+| Frontend | Ввод требований, HTTP-клиент, отображение модели, свойств, результата и шагов контрпримера |
+| Серверный маршрут Next.js | Передача JSON в FastAPI, адрес из `BACKEND_URL`, сохранение HTTP-статуса и обработка недоступности backend |
 | FastAPI | `GET /health`, `POST /api/analyze`, проверка входного текста, выбор провайдера, возврат `AnalysisResult` |
 | Analyst Agent | Последовательные вызовы `build_model`, `verify`, `explain_result` и сборка ответа |
 | `LLMProvider` | Интерфейс `build_model(requirements) → BehavioralModel` и `explain_result(requirements, model, result) → str` |
@@ -64,6 +66,8 @@ flowchart TB
 | `VerificationResult` | Структурированный результат проверки, отделённый от объяснения LLM |
 
 Backend работает без базы данных и очереди задач. Каждый запрос выполняется за один проход; история анализов не сохраняется. Публичный вход Model Checker — функция `verify`.
+
+Браузер обращается к своему origin `/api/analyze`; Next.js пересылает запрос на `BACKEND_URL` (по умолчанию `http://127.0.0.1:8000`). Ключ LLM остаётся на backend, CORS для браузера не требуется. Mock-ответов во frontend нет. Прокси ждёт не более 300 секунд и возвращает HTTP 504 при timeout, HTTP 502 при недоступности или некорректном ответе backend. Клиент показывает ошибки без старого результата; эти HTTP-ошибки не являются результатами TLC.
 
 ## Модель и компиляция
 
