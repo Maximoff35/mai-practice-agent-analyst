@@ -10,5 +10,8 @@ dist/
 build/
 /backend/.tools/
 .pytest_cache/
+.local/
 
+t.txt
+docs/frontend-plan.md
 docs/fontend_plan/

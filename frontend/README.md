@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Интерфейс агента-аналитика
 
-## Getting Started
+Frontend на Next.js принимает текст требований и показывает модель, свойства,
+результат TLC, контрпример и объяснение. Mock-ответы удалены: каждый анализ
+обращается к настоящему backend.
 
-First, run the development server:
+## Запуск
 
-```bash
+Нужен Node.js 24 и запущенный FastAPI; настройка backend описана в
+[общей инструкции](../README.md).
+
+Из каталога `frontend/`:
+
+```powershell
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте `http://localhost:3000`. Сервер Next.js передаёт `POST /api/analyze`
+в FastAPI на `http://127.0.0.1:8000`. При другом адресе backend задайте
+`$env:BACKEND_URL = 'http://127.0.0.1:8001'` перед запуском Next.js.
+Этот адрес используется только на сервере, ключ LLM браузеру не передаётся.
+Отдельная настройка CORS не требуется.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Проверки и сборка
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```powershell
+npm test
+npm run lint
+npm run build
+npm run start
+```
 
-## Learn More
+Тесты используют встроенный runner Node.js, проверяют клиент API и прокси,
+включая HTTP-ошибки, недоступность backend и timeout. Сборка также проверяет
+TypeScript. Для `next/font` при первой сборке нужен доступ к Google Fonts.
 
-To learn more about Next.js, take a look at the following resources:
+## Демонстрация
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Кнопка «Подставить пример» заполняет сценарий заявки и отмены. Нажмите
+«Проанализировать» — в режиме backend `fake` настоящий TLC найдёт
+`Created → Approved → Cancelled → Executed`. Для исправленного варианта нажмите
+«Новая модель», добавьте `При отмене заявки approved = false.` и повторите анализ.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`fake` подставляет модель и объяснение только для демонстрационного сценария;
+перебор выполняет TLC. Для свободных требований backend поддерживает
+OpenRouter. Статусы `TIMEOUT` и `STATE_LIMIT_REACHED` показываются как
+незавершённая проверка. Ошибки HTTP отображаются без подставного результата.
+Серверный прокси ограничивает ожидание пятью минутами.

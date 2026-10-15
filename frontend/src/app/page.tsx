@@ -9,9 +9,8 @@ import { analyzeRequirements } from "@/lib/api";
 import type { AnalysisResult } from "@/lib/types";
 
 const EXAMPLE_TEXT =
-  "Заявка создаётся. Её можно согласовать или отменить в любой момент. " +
-  "Согласованную заявку можно отменить, но препятствием остаётся то, что " +
-  "отменённую заявку система по-прежнему может исполнить.";
+  "Заявка после согласования может быть исполнена. " +
+  "Пользователь может отменить заявку до исполнения.";
 
 type FormState = "idle" | "loading" | "error" | "success";
 
@@ -40,16 +39,21 @@ export default function Home() {
   async function runAnalysis(text: string) {
     setFormState("loading");
     setErrorMessage(null);
+    setResult(null);
 
     try {
       const analysis = await analyzeRequirements(text);
       setResult(analysis);
       setFormState("success");
       setEditing(false);
-    } catch {
+    } catch (error) {
       setResult(null);
       setFormState("error");
-      setErrorMessage("Не удалось выполнить анализ. Попробуйте ещё раз.");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Не удалось выполнить анализ. Попробуйте ещё раз.",
+      );
     }
   }
 
@@ -93,12 +97,13 @@ export default function Home() {
         </p>
       </header>
 
-{editing ? (
+      {editing ? (
         <section className="flex flex-col gap-4 p-6">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <RequirementsInput
               value={requirements}
               onChange={setRequirements}
+              disabled={formState === "loading"}
               action={
                 <button
                   type="button"
@@ -159,7 +164,11 @@ export default function Home() {
         <section className="flex flex-col gap-4 p-6">
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              setEditing(true);
+              setFormState("idle");
+              setErrorMessage(null);
+            }}
             className="inline-flex w-fit items-center gap-2 rounded-xl border border-accent/60 bg-accent/10 px-6 py-2.5 text-sm font-medium text-accent transition-colors duration-300 hover:bg-accent/20"
           >
             <span aria-hidden="true" className="text-base leading-none">

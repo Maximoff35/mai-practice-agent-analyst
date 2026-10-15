@@ -54,10 +54,10 @@ export type VerificationStatus =
   | "ENGINE_ERROR";
 
 export type TLCStatistics = Partial<{
-  generated_states: number;
-  distinct_states: number;
-  queued_states: number;
-  graph_depth: number;
+  generated_states: number | null;
+  distinct_states: number | null;
+  queued_states: number | null;
+  graph_depth: number | null;
 }>;
 
 export type TraceValue = string | boolean | number;
