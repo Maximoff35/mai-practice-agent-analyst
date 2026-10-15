@@ -1,0 +1,908 @@
+{
+  "started_at": "2026-10-15T21:33:35.476754+00:00",
+  "requested_model": "qwen3.6-35b-a3b",
+  "runs": [
+    {
+      "id": "application_buggy",
+      "expected_status": "PROPERTY_VIOLATED",
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "Created",
+              "Approved",
+              "Cancelled",
+              "Executed"
+            ]
+          },
+          {
+            "name": "approved",
+            "type": "boolean"
+          },
+          {
+            "name": "cancelled",
+            "type": "boolean"
+          }
+        ],
+        "initial": {
+          "status": "Created",
+          "approved": false,
+          "cancelled": false
+        },
+        "transitions": [
+          {
+            "name": "Approve",
+            "guard": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Created"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Approved"
+                ]
+              },
+              {
+                "set": [
+                  "approved",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Cancel",
+            "guard": {
+              "in": [
+                {
+                  "var": "status"
+                },
+                [
+                  "Created",
+                  "Approved"
+                ]
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Cancelled"
+                ]
+              },
+              {
+                "set": [
+                  "cancelled",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Execute",
+            "guard": {
+              "eq": [
+                {
+                  "var": "approved"
+                },
+                true
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Executed"
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "no_executed_when_cancelled",
+            "type": "forbidden_state",
+            "expression": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Executed"
+                  ]
+                },
+                {
+                  "eq": [
+                    {
+                      "var": "cancelled"
+                    },
+                    true
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "verification_result": {
+        "status": "PROPERTY_VIOLATED",
+        "message": null,
+        "violated_property": "no_executed_when_cancelled",
+        "counterexample": [
+          {
+            "number": 1,
+            "values": {
+              "cancelled": false,
+              "approved": false,
+              "status": "Created"
+            },
+            "transition": null,
+            "tlc_label": "Initial predicate"
+          },
+          {
+            "number": 2,
+            "values": {
+              "cancelled": false,
+              "approved": true,
+              "status": "Approved"
+            },
+            "transition": "Approve",
+            "tlc_label": "Step_Approve line 18, col 3 to line 21, col 30 of module Model"
+          },
+          {
+            "number": 3,
+            "values": {
+              "cancelled": true,
+              "approved": true,
+              "status": "Cancelled"
+            },
+            "transition": "Cancel",
+            "tlc_label": "Step_Cancel line 24, col 3 to line 27, col 29 of module Model"
+          },
+          {
+            "number": 4,
+            "values": {
+              "cancelled": true,
+              "approved": true,
+              "status": "Executed"
+            },
+            "transition": "Execute",
+            "tlc_label": "Step_Execute line 30, col 3 to line 32, col 42 of module Model"
+          }
+        ],
+        "statistics": {
+          "generated_states": 9,
+          "distinct_states": 6,
+          "queued_states": 1,
+          "graph_depth": 4
+        },
+        "exit_code": 12
+      },
+      "explanation": "Свойство «запрещено Executed при cancelled=true» нарушено. Трасса: **Approve** (Created→Approved, approved=true) → **Cancel** (Approved→Cancelled, cancelled=true, approved остаётся true) → **Execute** (Cancelled→Executed, т.к. guard проверяет только approved=true). Причина: Cancel не сбрасывает признак approved, а Execute разрешён «независимо от статуса», поэтому из Cancelled с approved=true заявка уходит в Executed, одновременно оставаясь cancelled=true. Это прямое противоречие между двумя правилами требований: Execute не должен зависеть от статуса, но состояние Executed+cancelled=true запрещено.",
+      "elapsed_seconds": 12.89,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "application_fixed",
+      "expected_status": "PROPERTY_HOLDS",
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "Created",
+              "Approved",
+              "Cancelled",
+              "Executed"
+            ]
+          },
+          {
+            "name": "approved",
+            "type": "boolean"
+          },
+          {
+            "name": "cancelled",
+            "type": "boolean"
+          }
+        ],
+        "initial": {
+          "status": "Created",
+          "approved": false,
+          "cancelled": false
+        },
+        "transitions": [
+          {
+            "name": "Approve",
+            "guard": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Created"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Approved"
+                ]
+              },
+              {
+                "set": [
+                  "approved",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Cancel",
+            "guard": {
+              "in": [
+                {
+                  "var": "status"
+                },
+                [
+                  "Created",
+                  "Approved"
+                ]
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Cancelled"
+                ]
+              },
+              {
+                "set": [
+                  "cancelled",
+                  true
+                ]
+              },
+              {
+                "set": [
+                  "approved",
+                  false
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Execute",
+            "guard": {
+              "eq": [
+                {
+                  "var": "approved"
+                },
+                true
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Executed"
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "no_executed_cancelled",
+            "type": "forbidden_state",
+            "expression": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Executed"
+                  ]
+                },
+                {
+                  "eq": [
+                    {
+                      "var": "cancelled"
+                    },
+                    true
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "verification_result": {
+        "status": "PROPERTY_HOLDS",
+        "message": null,
+        "violated_property": null,
+        "counterexample": [],
+        "statistics": {
+          "generated_states": 10,
+          "distinct_states": 4,
+          "queued_states": 0,
+          "graph_depth": 3
+        },
+        "exit_code": 0
+      },
+      "explanation": "Свойство «запрещено состояние status=Executed при cancelled=true» подтверждено: TLC перебрал все 4 достижимых состояния и не нашёл ни одного нарушения. Это логически следует из модели: Execute требует approved=true, а Cancel обнуляет approved, поэтому после Cancel заявка не может перейти в Executed. Контрпример отсутствует, проверка завершена успешно (exit_code 0).",
+      "elapsed_seconds": 17.41,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "mutex_safe",
+      "expected_status": "PROPERTY_HOLDS",
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "inA",
+            "type": "boolean"
+          },
+          {
+            "name": "inB",
+            "type": "boolean"
+          }
+        ],
+        "initial": {
+          "inA": false,
+          "inB": false
+        },
+        "transitions": [
+          {
+            "name": "EnterA",
+            "guard": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "inA"
+                    },
+                    false
+                  ]
+                },
+                {
+                  "eq": [
+                    {
+                      "var": "inB"
+                    },
+                    false
+                  ]
+                }
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "inA",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "EnterB",
+            "guard": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "inA"
+                    },
+                    false
+                  ]
+                },
+                {
+                  "eq": [
+                    {
+                      "var": "inB"
+                    },
+                    false
+                  ]
+                }
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "inB",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "ExitA",
+            "guard": {
+              "eq": [
+                {
+                  "var": "inA"
+                },
+                true
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "inA",
+                  false
+                ]
+              }
+            ]
+          },
+          {
+            "name": "ExitB",
+            "guard": {
+              "eq": [
+                {
+                  "var": "inB"
+                },
+                true
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "inB",
+                  false
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "mutual_exclusion",
+            "type": "forbidden_state",
+            "expression": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "inA"
+                    },
+                    true
+                  ]
+                },
+                {
+                  "eq": [
+                    {
+                      "var": "inB"
+                    },
+                    true
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "verification_result": {
+        "status": "PROPERTY_HOLDS",
+        "message": null,
+        "violated_property": null,
+        "counterexample": [],
+        "statistics": {
+          "generated_states": 8,
+          "distinct_states": 3,
+          "queued_states": 0,
+          "graph_depth": 2
+        },
+        "exit_code": 0
+      },
+      "explanation": "Свойство взаимного исключения (запрет одновременного inA=true и inB=true) подтверждено: TLC перебрал все достижимые состояния (3 различных) и не нашёл ни одного нарушения. Это логично, поскольку и EnterA, и EnterB требуют inA=false и inB=false одновременно, поэтому второй вход невозможен, пока первый процесс удерживает ресурс. Контрпример отсутствует, проверка завершена успешно (exit_code 0).",
+      "elapsed_seconds": 9.26,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "mutex_buggy",
+      "expected_status": "PROPERTY_VIOLATED",
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "inA",
+            "type": "boolean"
+          },
+          {
+            "name": "inB",
+            "type": "boolean"
+          }
+        ],
+        "initial": {
+          "inA": false,
+          "inB": false
+        },
+        "transitions": [
+          {
+            "name": "EnterA",
+            "guard": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "inA"
+                    },
+                    false
+                  ]
+                },
+                {
+                  "eq": [
+                    {
+                      "var": "inB"
+                    },
+                    false
+                  ]
+                }
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "inA",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "EnterB",
+            "guard": {
+              "eq": [
+                {
+                  "var": "inB"
+                },
+                false
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "inB",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "ExitA",
+            "guard": {
+              "eq": [
+                {
+                  "var": "inA"
+                },
+                true
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "inA",
+                  false
+                ]
+              }
+            ]
+          },
+          {
+            "name": "ExitB",
+            "guard": {
+              "eq": [
+                {
+                  "var": "inB"
+                },
+                true
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "inB",
+                  false
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "mutual_exclusion",
+            "type": "forbidden_state",
+            "expression": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "inA"
+                    },
+                    true
+                  ]
+                },
+                {
+                  "eq": [
+                    {
+                      "var": "inB"
+                    },
+                    true
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "verification_result": {
+        "status": "PROPERTY_VIOLATED",
+        "message": null,
+        "violated_property": "mutual_exclusion",
+        "counterexample": [
+          {
+            "number": 1,
+            "values": {
+              "inA": false,
+              "inB": false
+            },
+            "transition": null,
+            "tlc_label": "Initial predicate"
+          },
+          {
+            "number": 2,
+            "values": {
+              "inA": true,
+              "inB": false
+            },
+            "transition": "EnterA",
+            "tlc_label": "Step_EnterA line 16, col 3 to line 18, col 24 of module Model"
+          },
+          {
+            "number": 3,
+            "values": {
+              "inA": true,
+              "inB": true
+            },
+            "transition": "EnterB",
+            "tlc_label": "Step_EnterB line 21, col 3 to line 23, col 24 of module Model"
+          }
+        ],
+        "statistics": {
+          "generated_states": 5,
+          "distinct_states": 4,
+          "queued_states": 1,
+          "graph_depth": 3
+        },
+        "exit_code": 12
+      },
+      "explanation": "Свойство взаимного исключения нарушено: трасса показывает последовательность EnterA → EnterB, после которой одновременно inA=true и inB=true. Причина — переход EnterB проверяет только inB=false и не учитывает состояние inA, что прямо соответствует исходному требованию «EnterB разрешён при inB=false независимо от inA». Таким образом, ошибка заложена в самой спецификации EnterB, и требование «не исправляй ошибку EnterB» сохраняет эту уязвимость.",
+      "elapsed_seconds": 10.44,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "ambiguous",
+      "expected_status": null,
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "Created",
+              "Approved",
+              "Cancelled",
+              "Executed"
+            ]
+          },
+          {
+            "name": "was_approved",
+            "type": "boolean"
+          },
+          {
+            "name": "was_cancelled",
+            "type": "boolean"
+          }
+        ],
+        "initial": {
+          "status": "Created",
+          "was_approved": false,
+          "was_cancelled": false
+        },
+        "transitions": [
+          {
+            "name": "approve",
+            "guard": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Created"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Approved"
+                ]
+              },
+              {
+                "set": [
+                  "was_approved",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "cancel",
+            "guard": {
+              "in": [
+                {
+                  "var": "status"
+                },
+                [
+                  "Created",
+                  "Approved"
+                ]
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Cancelled"
+                ]
+              },
+              {
+                "set": [
+                  "was_cancelled",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "execute",
+            "guard": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Approved"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Executed"
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "no_execute_after_cancel",
+            "type": "invariant",
+            "expression": {
+              "not": {
+                "and": [
+                  {
+                    "eq": [
+                      {
+                        "var": "status"
+                      },
+                      "Executed"
+                    ]
+                  },
+                  {
+                    "eq": [
+                      {
+                        "var": "was_cancelled"
+                      },
+                      true
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "no_execute_without_approve",
+            "type": "invariant",
+            "expression": {
+              "not": {
+                "and": [
+                  {
+                    "eq": [
+                      {
+                        "var": "status"
+                      },
+                      "Executed"
+                    ]
+                  },
+                  {
+                    "eq": [
+                      {
+                        "var": "was_approved"
+                      },
+                      false
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "no_approve_after_cancel",
+            "type": "invariant",
+            "expression": {
+              "not": {
+                "and": [
+                  {
+                    "eq": [
+                      {
+                        "var": "status"
+                      },
+                      "Approved"
+                    ]
+                  },
+                  {
+                    "eq": [
+                      {
+                        "var": "was_cancelled"
+                      },
+                      true
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "verification_result": {
+        "status": "PROPERTY_HOLDS",
+        "message": null,
+        "violated_property": null,
+        "counterexample": [],
+        "statistics": {
+          "generated_states": 10,
+          "distinct_states": 5,
+          "queued_states": 0,
+          "graph_depth": 3
+        },
+        "exit_code": 0
+      },
+      "explanation": "Проверка завершена успешно: все три свойства модели (нельзя исполнить после отмены, нельзя исполнить без согласования, нельзя согласовать после отмены) выполняются во всех достижимых состояниях. Однако исходные требования не определяют, что именно означает «безопасно», — модель содержит **предположения** о наборе инвариантов, которые не были заданы явно. Статус PROPERTY_HOLDS подтверждает корректность только конечной модели, а не безопасность реальной системы. Уточните, пожалуйста: какие именно правила безопасности вы считаете обязательными (например, запрет повторного согласования, запрет отмены после исполнения, ограничения по ролям)?",
+      "elapsed_seconds": 6.15,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ],
+      "recorded_at": "2026-10-15T21:36:12.141375+00:00"
+    }
+  ]
+}

@@ -20,11 +20,14 @@ flowchart TB
     API <--> AG[Analyst Agent]
     subgraph A[Интерпретация и объяснение]
         P[LLMProvider]
+        MAI[MAIProvider]
         OR[OpenRouterProvider]
         FA[FakeLLMProvider — фиксированный пример]
         LLM[Внешняя LLM]
+        P -. реализация .-> MAI
         P -. реализация .-> OR
         P -. реализация .-> FA
+        MAI <-->|HTTPS| LLM
         OR <-->|HTTPS| LLM
     end
     AG <-->|build_model / explain_result| P
@@ -43,7 +46,7 @@ flowchart TB
     RES --> AG
 ```
 
-`FakeLLMProvider` реализует тот же интерфейс, что и OpenRouter, но работает детерминированно: возвращает заранее заданную модель и шаблонное объяснение. Model Checker в обоих режимах использует настоящий TLC.
+`FakeLLMProvider` реализует тот же интерфейс, что и провайдеры МАИ/OpenRouter, но работает детерминированно: возвращает заранее заданную модель и шаблонное объяснение. Model Checker во всех режимах использует настоящий TLC.
 
 ## Компоненты
 
@@ -54,6 +57,7 @@ flowchart TB
 | FastAPI | `GET /health`, `POST /api/analyze`, проверка входного текста, выбор провайдера, возврат `AnalysisResult` |
 | Analyst Agent | Последовательные вызовы `build_model`, `verify`, `explain_result` и сборка ответа |
 | `LLMProvider` | Интерфейс `build_model(requirements) → BehavioralModel` и `explain_result(requirements, model, result) → str` |
+| `MAIProvider` | API МАИ по официальному OpenAPI: два HTTPS-запроса, строгая валидация JSON; ключ, модель, адрес и timeout из конфигурации |
 | `OpenRouterProvider` | Два HTTPS-запроса через HTTPX: получение JSON модели и генерация объяснения; проверка ответа и валидация модели |
 | `FakeLLMProvider` | Демонстрационный сценарий заявки и отмены; фраза `approved = false` выбирает исправленный вариант |
 | `BehavioralModel` | Строгие Pydantic-схемы переменных, начального состояния, переходов и свойств |
@@ -79,7 +83,7 @@ Backend работает без базы данных и очереди зада
 
 В `Next` добавляется `UNCHANGED vars`, поэтому терминальное состояние не вызывает ошибку deadlock. Для поддержки `deadlock_free` потребуется отдельно определить семантику допустимых конечных состояний и блокировок.
 
-`OpenRouterProvider`, `verify` и `generate_tla` используют общий `validate_model`. Провайдер проверяет JSON от LLM; перед проверкой и генерацией модель валидируется повторно.
+`MAIProvider`, `OpenRouterProvider`, `verify` и `generate_tla` используют общий `validate_model`. Провайдер проверяет JSON от LLM; перед проверкой и генерацией модель валидируется повторно.
 
 ## Запуск TLC и разбор результата
 
@@ -115,19 +119,19 @@ Result Parser обрабатывает текстовый вывод TLC. Для
 | Ситуация | Ответ |
 | --- | --- |
 | Пустой или отсутствующий текст; неподдерживаемая тема для fake | HTTP 422 |
-| Неизвестный провайдер; отсутствует ключ или модель OpenRouter | HTTP 503 |
-| Ошибка OpenRouter, неверный JSON или невалидная модель LLM | HTTP 502 |
+| Неизвестный провайдер; отсутствует ключ/модель МАИ или OpenRouter; неверные настройки МАИ | HTTP 503 |
+| Ошибка МАИ/OpenRouter, неверный JSON или невалидная модель LLM при построении | HTTP 502 |
 | Анализ завершён и объяснение получено | HTTP 200 с `AnalysisResult`; статус проверки находится в `verification_result.status` |
 
-`/health` проверяет доступность HTTP-приложения. Готовность OpenRouter и TLC проверяется при анализе требования.
+`/health` проверяет доступность HTTP-приложения. Готовность LLM-провайдера и TLC проверяется при анализе требования.
 
-Если второй вызов LLM для объяснения завершается ошибкой, API возвращает 502 без частичного результата TLC. Автоматическое исправление модели, повторные запросы и переключение на fake пока не поддерживаются.
+Если второй вызов LLM для объяснения завершается ошибкой или возвращает пустой текст, API возвращает HTTP 200 с исходным результатом TLC и явно помеченным шаблонным сообщением без догадок о причине. Повторного запуска checker нет; статус и контрпример сохраняются. Ошибка построения модели по-прежнему возвращает HTTP 502. Автоматическое исправление модели, повторные запросы и переключение на fake пока не поддерживаются.
 
 ## Настройки
 
-`LLM_PROVIDER` выбирает `fake` по умолчанию или `openrouter`. Ключ и модель задаются через `OPENROUTER_API_KEY` и `OPENROUTER_MODEL`. Настройки Analyst Agent читаются из окружения или конфигурационного файла backend с приоритетом окружения.
+`LLM_PROVIDER` выбирает `fake` по умолчанию, `mai` или `openrouter`. МАИ: `MAI_API_KEY`, `MAI_MODEL`, `MAI_BASE_URL` (по умолчанию `https://api-ai.mai.ru`), `MAI_TIMEOUT_SECONDS` (90). OpenRouter: `OPENROUTER_API_KEY` и `OPENROUTER_MODEL`. Настройки Analyst Agent читаются из окружения или конфигурационного файла backend с приоритетом окружения.
 
-Runner получает `MODEL_CHECKER_JAVA`, `MODEL_CHECKER_TLA2TOOLS_JAR`, `MODEL_CHECKER_TIMEOUT_SECONDS`, `MODEL_CHECKER_TEMP_DIR` только из окружения. Timeout TLC по умолчанию — 60 секунд, HTTPX у OpenRouter — 90 секунд. Общий лимит времени на весь анализ не задан.
+Runner получает `MODEL_CHECKER_JAVA`, `MODEL_CHECKER_TLA2TOOLS_JAR`, `MODEL_CHECKER_TIMEOUT_SECONDS`, `MODEL_CHECKER_TEMP_DIR` только из окружения. Timeout TLC по умолчанию — 60 секунд, HTTPX у OpenRouter — 90 секунд, у МАИ — настраиваемые 90 секунд по умолчанию. Общий лимит времени на весь анализ не задан.
 
 Во внешний LLM API передаются требования, а при объяснении — также модель и результат без `stdout/stderr`. Достоверность модели и объяснения по смыслу автоматически не оценивается.
 
