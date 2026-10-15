@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from model_checker import BehavioralModel, ModelValidationError, VerificationResult, validate_model
 
 from .config import get_setting
+from .prompts import EXPLANATION_INSTRUCTIONS, MODEL_INSTRUCTIONS
 
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -34,30 +35,6 @@ class OpenRouterResponseError(OpenRouterError):
 
 class OpenRouterModelError(OpenRouterResponseError):
     pass
-
-
-_MODEL_INSTRUCTIONS = """Ты аналитик конечных поведенческих моделей. Преобразуй требования пользователя в BehavioralModel.
-Верни только один JSON-объект, без Markdown, комментариев и пояснений. Не запускай model checking и не утверждай, что свойство выполнено.
-Формат: variables (непустой массив), initial (значение каждой переменной), transitions (массив), properties (непустой массив).
-Переменные: enum с непустым массивом строк values, boolean или integer с конечными min/max.
-Имена переменных, переходов и свойств — ASCII-идентификаторы; значения enum — печатные ASCII-строки.
-Transition: name, guard, effects. Выражения: {"var":"name"}, {"eq":[term,term]}, {"in":[term,[literal,...]]},
-{"and":[predicate,predicate,...]}, {"or":[predicate,predicate,...]}, {"not":predicate}. Term — литерал или ссылка var.
-Effect: {"set":["variable", literal_or_var]}. Неизменённые переменные не нужно указывать в effects.
-Property: name, type (invariant либо forbidden_state), expression (булево выражение).
-Сохраняй смысл требований. Не придумывай исправление описанной логики: если отмена не сбрасывает признак согласования,
-модель должна сохранить этот признак. Добавляй только конечные домены и проверяемые свойства.
-Свойство не должно запрещать поведение, которое требования явно разрешают: разрешённое исполнение после согласования
-не является само по себе ошибкой. Если запрет зависит от истории (например, ранее была отмена), введи отдельный
-булев признак памяти и проверяй именно сочетание этого признака с текущим состоянием."""
-
-_EXPLANATION_INSTRUCTIONS = """Объясни результат проверки по-русски в 2–5 коротких предложениях.
-Статус, свойства и counterexample получены от детерминированного TLC: не меняй их и не проводи проверку самостоятельно.
-Если найдено нарушение, назови последовательность действий и причину на языке требований.
-Сверяй каждое утверждение с состояниями и переходами counterexample. Не утверждай, что действия или признака не было,
-если трасса показывает обратное. Если свойство модели оказалось сильнее исходного требования, скажи об этом прямо.
-Если проверка не завершена (TIMEOUT, STATE_LIMIT_REACHED, ENGINE_ERROR), не говори, что свойство доказано.
-Не выводи JSON или технические логи."""
 
 
 class OpenRouterProvider:
@@ -134,7 +111,7 @@ class OpenRouterProvider:
     def build_model(self, requirements: str) -> BehavioralModel:
         content = self._request(
             [
-                {"role": "system", "content": _MODEL_INSTRUCTIONS},
+                {"role": "system", "content": MODEL_INSTRUCTIONS},
                 {"role": "user", "content": requirements},
             ],
             structured=True,
@@ -162,7 +139,7 @@ class OpenRouterProvider:
         }
         return self._request(
             [
-                {"role": "system", "content": _EXPLANATION_INSTRUCTIONS},
+                {"role": "system", "content": EXPLANATION_INSTRUCTIONS},
                 {"role": "user", "content": json.dumps(context, ensure_ascii=False)},
             ],
             structured=False,
