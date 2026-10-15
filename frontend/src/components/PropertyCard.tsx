@@ -20,15 +20,15 @@ export default function PropertyCard({ properties }: { properties: Property[] })
     properties.length === 1 ? "Проверяемое свойство" : "Проверяемые свойства";
 
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border border-accent/15 bg-panel p-6">
-      <div className="flex items-baseline justify-between">
+    <section className="flex flex-col gap-4 rounded-2xl border border-accent/15 bg-panel p-4 sm:p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="text-lg font-semibold text-foreground/90">{title}</h2>
-        <span className="text-xs text-foreground/40">
+        <span className="text-xs text-foreground/50">
           {properties.length} шт.
         </span>
       </div>
 
-      <p className="text-sm leading-relaxed text-foreground/60">
+      <p className="text-sm leading-relaxed text-foreground/70">
         Свойства формализуют требования к системе: агент выводит их из
         текстового описания вместе с моделью, а model checker проверяет
         выполнимость на всех достижимых состояниях.
@@ -52,10 +52,10 @@ export default function PropertyCard({ properties }: { properties: Property[] })
                   {property.type}
                 </span>
               </div>
-              <code className="text-sm leading-relaxed text-foreground/80">
+              <code className="break-words whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
                 {formatExpression(property.expression)}
               </code>
-              <p className="text-xs leading-relaxed text-foreground/50">
+              <p className="text-xs leading-relaxed text-foreground/60">
                 {info.description}
               </p>
             </div>
