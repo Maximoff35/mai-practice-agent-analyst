@@ -11,5 +11,4 @@ build/
 /backend/.tools/
 .pytest_cache/
 
-t.txt
-docs/frontend-plan.md
+docs/fontend_plan/

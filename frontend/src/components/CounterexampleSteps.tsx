@@ -17,7 +17,7 @@ export default function CounterexampleSteps({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <h3 className="text-sm font-semibold text-accent">Контрпример</h3>
-        <p className="text-xs leading-relaxed text-foreground/50">
+        <p className="text-xs leading-relaxed text-foreground/60">
           Последовательность допустимых шагов, при которой нарушается
           проверяемое свойство.
         </p>
@@ -51,10 +51,10 @@ export default function CounterexampleSteps({
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-foreground/90">
+                  <span className="break-words text-sm font-semibold text-foreground/90">
                     {state.transition ?? "Начальное состояние"}
                   </span>
-                  <span className="text-xs text-foreground/40">
+                  <span className="shrink-0 text-xs text-foreground/50">
                     шаг {state.number}
                   </span>
                 </div>
@@ -63,7 +63,7 @@ export default function CounterexampleSteps({
                   {Object.entries(state.values).map(([name, value]) => (
                     <code
                       key={name}
-                      className="rounded border border-foreground/10 px-2 py-0.5 text-xs text-foreground/75"
+                      className="max-w-full break-words rounded border border-foreground/10 px-2 py-0.5 text-xs text-foreground/85"
                     >
                       {name} = {displayValue(value)}
                     </code>
@@ -71,7 +71,7 @@ export default function CounterexampleSteps({
                 </div>
 
                 {state.tlc_label && (
-                  <span className="text-[10px] text-foreground/30">
+                  <span className="break-all text-[10px] text-foreground/40">
                     {state.tlc_label}
                   </span>
                 )}
