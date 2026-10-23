@@ -6,13 +6,15 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
 
 from .parser import parse_tlc_output
-from .result import VerificationResult, VerificationStatus
+from .references import attach_result_references
+from .result import PropertyResult, VerificationResult, VerificationStatus
 from .schemas import BehavioralModel
 from .tla import generate_tla
 from .validator import ModelValidationError, validate_model
@@ -42,7 +44,7 @@ def _resolve_java(executable: str) -> str | None:
     return str(path.resolve()) if path.is_file() else None
 
 
-def verify(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = None) -> VerificationResult:
+def _verify_single(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = None) -> VerificationResult:
     """Validate, generate, run TLC, and return a structured result."""
     try:
         parsed_model = validate_model(model)
@@ -84,3 +86,51 @@ def verify(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = N
     except OSError as error:
         return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message=str(error))
     return parse_tlc_output(stdout, stderr, process.returncode, model=parsed_model, timed_out=timed_out)
+
+
+def verify(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = None) -> VerificationResult:
+    """Preserve legacy invariant checks; isolate each property when reachable is present."""
+    try:
+        parsed_model = validate_model(model)
+    except (ValidationError, ModelValidationError, ValueError) as error:
+        return VerificationResult(status=VerificationStatus.MODEL_INVALID, message=str(error))
+    if not any(prop.type == "reachable" for prop in parsed_model.properties):
+        return _verify_single(parsed_model, config)
+
+    config = config or TLCConfig.from_env()
+    deadline = time.monotonic() + config.timeout_seconds
+    results: list[VerificationResult] = []
+    property_results: list[PropertyResult] = []
+    for prop in parsed_model.properties:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            result = VerificationResult(status=VerificationStatus.TIMEOUT, message="Общий лимит времени проверки исчерпан")
+        else:
+            single_model = parsed_model.model_copy(update={"properties": [prop]})
+            result = _verify_single(single_model, config.model_copy(update={"timeout_seconds": remaining}))
+        results.append(result)
+        property_results.append(PropertyResult(
+            property_name=prop.name, property_type=prop.type, status=result.status,
+            message=result.message, counterexample=result.counterexample, witness=result.witness,
+            related_requirements=result.related_requirements, statistics=result.statistics,
+        ))
+
+    # A definite violation remains visible even if another property's search was interrupted.
+    precedence = [VerificationStatus.PROPERTY_VIOLATED, VerificationStatus.MODEL_INVALID,
+                  VerificationStatus.ENGINE_ERROR, VerificationStatus.TIMEOUT, VerificationStatus.STATE_LIMIT_REACHED,
+                  VerificationStatus.PROPERTY_HOLDS]
+    status = next(status for status in precedence if any(result.status == status for result in results))
+    selected = next(index for index, result in enumerate(results) if result.status == status)
+    representative = results[selected]
+    return attach_result_references(VerificationResult(
+        status=status,
+        message="; ".join(f"{item.property_name}: {item.status.value}" for item in property_results),
+        violated_property=parsed_model.properties[selected].name if status == VerificationStatus.PROPERTY_VIOLATED else None,
+        counterexample=representative.counterexample,
+        witness=representative.witness if len(results) == 1 else [],
+        property_results=property_results,
+        statistics=representative.statistics if len(results) == 1 else {},
+        stdout="\n".join(result.stdout for result in results),
+        stderr="\n".join(result.stderr for result in results),
+        exit_code=representative.exit_code,
+    ), parsed_model)

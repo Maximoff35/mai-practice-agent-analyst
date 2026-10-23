@@ -48,21 +48,40 @@ def attach_result_references(
     result: VerificationResult,
     model: BehavioralModel,
 ) -> VerificationResult:
-    """Attach references for the violated property and transitions in its trace."""
+    """Attach references to property results and paths after input validation by the caller."""
     transitions = {transition.name: transition for transition in model.transitions}
     properties = {prop.name: prop for prop in model.properties}
     related: list[SourceReference] = []
     property_model = properties.get(result.violated_property or "")
+    if property_model is None and len(model.properties) == 1:
+        property_model = model.properties[0]
     _append_unique(related, property_model.source_reference if property_model else None)
 
-    states: list[TraceState] = []
-    for state in result.counterexample:
-        transition = transitions.get(state.transition or "")
-        state_related: list[SourceReference] = []
-        _append_unique(state_related, transition.source_reference if transition else None)
-        states.append(state.model_copy(update={"related_requirements": state_related}))
-        _append_unique(related, transition.source_reference if transition else None)
+    def annotate_path(path: list[TraceState], collected: list[SourceReference]) -> list[TraceState]:
+        states = []
+        for state in path:
+            transition = transitions.get(state.transition or "")
+            reference = transition.source_reference if transition else None
+            state_related = [reference] if reference else []
+            states.append(state.model_copy(update={"related_requirements": state_related}))
+            _append_unique(collected, reference)
+        return states
 
-    return result.model_copy(
-        update={"counterexample": states, "related_requirements": related}
-    )
+    counterexample = annotate_path(result.counterexample, related)
+    witness = annotate_path(result.witness, related)
+    property_results = []
+    for item in result.property_results:
+        prop = properties.get(item.property_name)
+        item_related: list[SourceReference] = []
+        _append_unique(item_related, prop.source_reference if prop else None)
+        item_counterexample = annotate_path(item.counterexample, item_related)
+        item_witness = annotate_path(item.witness, item_related)
+        property_results.append(item.model_copy(update={
+            "related_requirements": item_related, "counterexample": item_counterexample, "witness": item_witness,
+        }))
+        for reference in item_related:
+            _append_unique(related, reference)
+    return result.model_copy(update={
+        "counterexample": counterexample, "witness": witness,
+        "property_results": property_results, "related_requirements": related,
+    })

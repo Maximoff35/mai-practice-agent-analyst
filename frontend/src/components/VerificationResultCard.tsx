@@ -52,6 +52,13 @@ export default function VerificationResultCard({
   explanation,
 }: VerificationResultCardProps) {
   const info = STATUS_INFO[result.status];
+  const propertyResults = result.property_results ?? [];
+  const hasIndividualResults = propertyResults.length > 0;
+  const title = hasIndividualResults && result.status === "PROPERTY_HOLDS"
+    ? "Все заданные свойства выполнены"
+    : hasIndividualResults && result.status === "PROPERTY_VIOLATED"
+      ? "Есть невыполненное свойство"
+      : info.title;
   const hasCounterexample = result.counterexample.length > 0;
   const statistics = Object.entries(result.statistics).filter(
     ([, value]) => value !== null && value !== undefined,
@@ -69,7 +76,7 @@ export default function VerificationResultCard({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-foreground/85">{info.title}</p>
+        <p className="text-sm text-foreground/85">{title}</p>
         {result.message && (
           <p className="break-words text-sm leading-relaxed text-foreground/70">
             {result.message}
@@ -106,7 +113,21 @@ export default function VerificationResultCard({
         </div>
       )}
 
-      {hasCounterexample ? (
+      {hasIndividualResults ? propertyResults.map((item) => (
+        <div key={item.property_name} className="flex flex-col gap-3 border-t border-foreground/10 pt-4">
+          <h3 className="break-words text-sm font-semibold">
+            {item.property_name} ({item.property_type}): {item.status}
+          </h3>
+          {item.message && <p className="text-sm text-foreground/70">{item.message}</p>}
+          {STATUS_INFO[item.status].warning && (
+            <p className="text-sm text-amber-400/80">{STATUS_INFO[item.status].warning}</p>
+          )}
+          {item.witness.length > 0 && <CounterexampleSteps states={item.witness}
+            title={`Путь к цели: ${item.property_name}`}
+            description="Допустимая последовательность шагов до целевого состояния." />}
+          {item.counterexample.length > 0 && <CounterexampleSteps states={item.counterexample} markLast />}
+        </div>
+      )) : hasCounterexample ? (
         <CounterexampleSteps
           states={result.counterexample}
           markLast={result.status === "PROPERTY_VIOLATED"}

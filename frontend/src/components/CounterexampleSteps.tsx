@@ -7,19 +7,22 @@ function displayValue(value: TraceValue): string {
 type CounterexampleStepsProps = {
   states: TraceState[];
   markLast?: boolean;
+  title?: string;
+  description?: string;
 };
 
 export default function CounterexampleSteps({
   states,
   markLast = false,
+  title = "Контрпример",
+  description = "Последовательность допустимых шагов, при которой нарушается проверяемое свойство.",
 }: CounterexampleStepsProps) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-semibold text-accent">Контрпример</h3>
+        <h3 className="text-sm font-semibold text-accent">{title}</h3>
         <p className="text-xs leading-relaxed text-foreground/60">
-          Последовательность допустимых шагов, при которой нарушается
-          проверяемое свойство.
+          {description}
         </p>
       </div>
 

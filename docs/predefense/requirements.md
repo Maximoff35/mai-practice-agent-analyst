@@ -109,8 +109,9 @@ Created → Approve → Approved → Cancel → Cancelled → Execute → Execut
 
 ## Ограничения текущего прототипа
 
-Реализованы `invariant` и `forbidden_state`. Поддержка `reachable`, `deadlock_free`
-и отдельного диалога уточнений остаётся дальнейшей работой. Статус
+Реализованы `invariant`, `forbidden_state` и `reachable`. Семантика путей и
+нескольких свойств описана в [контракте](../model-checker-contract.md).
+Поддержка `deadlock_free` и отдельного диалога уточнений остаётся дальнейшей работой. Статус
 `STATE_LIMIT_REACHED` распознаётся, но настройка лимита состояний пока не поддерживается.
 
 Текущие интерфейсы описаны в [архитектуре системы](architecture.md), результаты проверок — в [описании прототипа](prototype.md).
