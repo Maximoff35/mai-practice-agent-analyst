@@ -3,9 +3,8 @@
 import { useState, type FormEvent } from "react";
 import RequirementsInput from "@/components/RequirementsInput";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import ModelCard, { ModelCardSkeleton } from "@/components/ModelCard";
-import PropertyCard from "@/components/PropertyCard";
-import VerificationResultCard from "@/components/VerificationResultCard";
+import { ModelCardSkeleton } from "@/components/ModelCard";
+import AnalysisTabs from "@/components/AnalysisTabs";
 import { analyzeRequirements } from "@/lib/api";
 import type { AnalysisResult } from "@/lib/types";
 
@@ -21,6 +20,7 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [confirmingExample, setConfirmingExample] = useState(false);
+  const [confirmingReanalysis, setConfirmingReanalysis] = useState(false);
   const [editing, setEditing] = useState(true);
 
   function handleExampleClick() {
@@ -36,7 +36,28 @@ export default function Home() {
     setConfirmingExample(false);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function runAnalysis(text: string) {
+    setFormState("loading");
+    setErrorMessage(null);
+    setResult(null);
+
+    try {
+      const analysis = await analyzeRequirements(text);
+      setResult(analysis);
+      setFormState("success");
+      setEditing(false);
+    } catch (error) {
+      setResult(null);
+      setFormState("error");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Не удалось выполнить анализ. Попробуйте ещё раз.",
+      );
+    }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmed = requirements.trim();
@@ -46,25 +67,23 @@ export default function Home() {
       return;
     }
 
-    setFormState("loading");
-    setErrorMessage(null);
-    setResult(null);
-
-    try {
-      const analysis = await analyzeRequirements(trimmed);
-      setResult(analysis);
-      setFormState("success");
-      setEditing(false);
-    } catch (error) {
-      setFormState("error");
-      setErrorMessage(error instanceof Error ? error.message : "Не удалось выполнить анализ. Попробуйте ещё раз.");
+    if (result) {
+      setConfirmingReanalysis(true);
+      return;
     }
+
+    void runAnalysis(trimmed);
+  }
+
+  function confirmReanalysis() {
+    setConfirmingReanalysis(false);
+    void runAnalysis(requirements.trim());
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[62rem] flex-1 flex-col gap-8 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-[62rem] flex-1 flex-col gap-6 px-4 py-8 sm:gap-8 sm:px-6 sm:py-12">
       <header className="flex flex-col gap-2">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+        <h1 className="flex flex-wrap items-center gap-2 text-xl font-semibold sm:text-2xl">
           <span className="flex items-baseline leading-none text-accent">
             <span className="text-[1.75rem] font-extrabold">S</span>
             <span className="text-[0.875rem] font-bold">AI</span>
@@ -147,7 +166,6 @@ export default function Home() {
             type="button"
             onClick={() => {
               setEditing(true);
-              setResult(null);
               setFormState("idle");
               setErrorMessage(null);
             }}
@@ -173,18 +191,7 @@ export default function Home() {
       {formState === "loading" ? (
         <ModelCardSkeleton />
       ) : (
-        result && <ModelCard model={result.behavioral_model} />
-      )}
-
-      {result && formState !== "loading" && (
-        <PropertyCard properties={result.behavioral_model.properties} />
-      )}
-
-      {result && formState !== "loading" && (
-        <VerificationResultCard
-          result={result.verification_result}
-          explanation={result.explanation}
-        />
+        result && <AnalysisTabs result={result} />
       )}
 
       {confirmingExample && (
@@ -195,6 +202,17 @@ export default function Home() {
           cancelLabel="Отмена"
           onConfirm={confirmExample}
           onCancel={() => setConfirmingExample(false)}
+        />
+      )}
+
+      {confirmingReanalysis && (
+        <ConfirmDialog
+          title="Запустить новый анализ?"
+          message="Построенная модель и результат проверки будут заменены новым анализом текущего описания."
+          confirmLabel="Проанализировать"
+          cancelLabel="Отмена"
+          onConfirm={confirmReanalysis}
+          onCancel={() => setConfirmingReanalysis(false)}
         />
       )}
     </main>

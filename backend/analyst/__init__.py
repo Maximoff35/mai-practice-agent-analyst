@@ -1,6 +1,7 @@
 """Analyst Agent and interchangeable language-model providers."""
 
 from .agent import AnalysisResult, AnalystAgent
+from .mai import MAIAPIError, MAIConfigurationError, MAIError, MAIProvider, MAIResponseError
 from .provider import FakeLLMProvider, LLMProvider, UnsupportedRequirementsError
 from .openrouter import (
     OpenRouterAPIError,
@@ -17,6 +18,11 @@ __all__ = [
     "AnalystAgent",
     "FakeLLMProvider",
     "LLMProvider",
+    "MAIAPIError",
+    "MAIConfigurationError",
+    "MAIError",
+    "MAIProvider",
+    "MAIResponseError",
     "OpenRouterAPIError",
     "OpenRouterConfigurationError",
     "OpenRouterError",

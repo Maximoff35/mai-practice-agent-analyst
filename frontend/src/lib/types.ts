@@ -74,7 +74,7 @@ export type TraceState = {
   values: Record<string, TraceValue>;
   transition: string | null;
   tlc_label: string | null;
-  related_requirements: SourceReference[];
+  related_requirements?: SourceReference[];
 };
 
 export type VerificationResult = {
@@ -86,7 +86,7 @@ export type VerificationResult = {
   stdout: string;
   stderr: string;
   exit_code: number | null;
-  related_requirements: SourceReference[];
+  related_requirements?: SourceReference[];
 };
 
 export type AnalysisResult = {
@@ -94,6 +94,6 @@ export type AnalysisResult = {
   behavioral_model: BehavioralModel;
   verification_result: VerificationResult;
   counterexample: TraceState[] | null;
-  related_requirements: SourceReference[];
+  related_requirements?: SourceReference[];
   explanation: string;
 };

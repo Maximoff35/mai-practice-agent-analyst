@@ -58,8 +58,8 @@ export default function VerificationResultCard({
   );
 
   return (
-    <section className="flex flex-col gap-6 rounded-2xl border border-accent/15 bg-panel p-6">
-      <div className="flex items-baseline justify-between gap-4">
+    <section className="flex flex-col gap-6 rounded-2xl border border-accent/15 bg-panel p-4 sm:p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <h2 className="text-lg font-semibold text-foreground/90">
           Результат проверки
         </h2>
@@ -69,16 +69,16 @@ export default function VerificationResultCard({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-foreground/80">{info.title}</p>
+        <p className="text-sm text-foreground/85">{info.title}</p>
         {result.message && (
-          <p className="text-sm leading-relaxed text-foreground/60">
+          <p className="break-words text-sm leading-relaxed text-foreground/70">
             {result.message}
           </p>
         )}
         {result.violated_property && (
-          <p className="text-sm text-foreground/60">
+          <p className="break-words text-sm text-foreground/70">
             Нарушенное свойство:{" "}
-            <code className="text-foreground/80">
+            <code className="break-words text-foreground/85">
               {result.violated_property}
             </code>
           </p>
@@ -98,7 +98,7 @@ export default function VerificationResultCard({
               className="flex flex-col gap-1 rounded-lg border border-foreground/10 px-3 py-2"
             >
               <span className="text-lg text-foreground/90">{value}</span>
-              <span className="text-xs text-foreground/40">
+              <span className="text-xs text-foreground/50">
                 {STATISTICS_LABELS[key] ?? key}
               </span>
             </div>
@@ -113,7 +113,7 @@ export default function VerificationResultCard({
         />
       ) : (
         result.status === "PROPERTY_HOLDS" && (
-          <p className="text-sm text-foreground/50">
+          <p className="text-sm text-foreground/60">
             Контрпример не найден в проверенной конечной модели. Это не
             доказывает корректность реальной системы или интерпретации требований.
           </p>

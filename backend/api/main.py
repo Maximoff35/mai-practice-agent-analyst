@@ -11,6 +11,9 @@ from analyst import (
     AnalysisResult,
     AnalystAgent,
     FakeLLMProvider,
+    MAIConfigurationError,
+    MAIError,
+    MAIProvider,
     OpenRouterConfigurationError,
     OpenRouterError,
     OpenRouterProvider,
@@ -43,6 +46,11 @@ def get_agent() -> AnalystAgent:
             return AnalystAgent(OpenRouterProvider.from_env())
         except OpenRouterConfigurationError as error:
             raise HTTPException(status_code=503, detail=str(error)) from error
+    if provider_name == "mai":
+        try:
+            return AnalystAgent(MAIProvider.from_env())
+        except MAIConfigurationError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
     raise HTTPException(status_code=503, detail=f"Неизвестный LLM_PROVIDER: {provider_name}")
 
 
@@ -59,5 +67,5 @@ def analyze(request: AnalyzeRequest, agent: Annotated[AnalystAgent, Depends(get_
         raise HTTPException(status_code=422, detail=str(error)) from error
     except SourceReferenceValidationError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    except OpenRouterError as error:
+    except (OpenRouterError, MAIError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error

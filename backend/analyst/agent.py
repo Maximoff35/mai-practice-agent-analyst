@@ -44,7 +44,20 @@ class AnalystAgent:
         validate_source_references(model, requirements)
         verification = self.checker(model)
         verification = attach_result_references(verification, model)
-        explanation = self.provider.explain_result(requirements, model, verification)
+        try:
+            explanation = self.provider.explain_result(requirements, model, verification)
+            if not isinstance(explanation, str) or not explanation.strip():
+                raise ValueError("Пустое объяснение провайдера")
+        except Exception:
+            # Only explanation is optional; construction and checker errors still propagate.
+            # Provider exceptions may contain credentials, so never expose their contents.
+            explanation = (
+                "Шаблонное сообщение: объяснение LLM получить не удалось. "
+                f"Результат проверки сохранён: {verification.status.value}. "
+                "Ориентируйтесь на модель, статус и трассу TLC. "
+                "Это сообщение не объясняет причину результата; незавершённая проверка "
+                "не подтверждает выполнение свойства."
+            )
         return AnalysisResult(
             requirements=requirements,
             behavioral_model=model,

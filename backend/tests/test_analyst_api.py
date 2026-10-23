@@ -1,10 +1,8 @@
-from pathlib import Path
-
 import pytest
 from fastapi.testclient import TestClient
 
 from analyst import AnalystAgent, FakeLLMProvider
-from api.main import app
+from api.main import app, get_agent
 from model_checker import TraceState, VerificationResult, VerificationStatus
 
 
@@ -97,6 +95,74 @@ def test_agent_returns_verified_related_requirements(buggy_model):
     assert [reference.id for reference in result.counterexample[2].related_requirements] == ["REQ-2"]
 
 
+@pytest.mark.parametrize("status", list(VerificationStatus))
+def test_api_preserves_checked_result_when_explanation_fails(status):
+    calls = []
+    verification = VerificationResult(
+        status=status,
+        counterexample=[TraceState(number=1, values={"status": "Created"})]
+        if status == VerificationStatus.PROPERTY_VIOLATED else [],
+        statistics={"distinct_states": 4},
+    )
+
+    class FailingExplanationProvider(FakeLLMProvider):
+        def explain_result(self, requirements, model, result):
+            raise RuntimeError("secret-provider-response")
+
+    def checker(model):
+        calls.append(model)
+        return verification
+
+    app.dependency_overrides[get_agent] = lambda: AnalystAgent(FailingExplanationProvider(), checker)
+    try:
+        response = TestClient(app).post("/api/analyze", json={"requirements": DEMO_REQUIREMENTS})
+    finally:
+        app.dependency_overrides.pop(get_agent, None)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(calls) == 1
+    assert body["behavioral_model"] == calls[0].model_dump(mode="json")
+    assert body["verification_result"] == verification.model_dump(mode="json")
+    assert body["counterexample"] == (verification.model_dump(mode="json")["counterexample"] or None)
+    assert "Шаблонное сообщение" in body["explanation"]
+    assert status.value in body["explanation"]
+    assert "secret-provider-response" not in response.text
+
+
+@pytest.mark.parametrize("explanation", ["", "  ", None])
+def test_empty_explanation_uses_fallback(explanation):
+    class EmptyExplanationProvider(FakeLLMProvider):
+        def explain_result(self, requirements, model, result):
+            return explanation
+
+    result = AnalystAgent(
+        EmptyExplanationProvider(),
+        checker=lambda model: VerificationResult(status=VerificationStatus.TIMEOUT),
+    ).analyze(DEMO_REQUIREMENTS)
+    assert result.verification_result.status == VerificationStatus.TIMEOUT
+    assert "Шаблонное сообщение" in result.explanation
+
+
+def test_model_construction_failure_still_returns_api_error():
+    from analyst import OpenRouterAPIError
+
+    class FailingModelProvider(FakeLLMProvider):
+        def build_model(self, requirements):
+            raise OpenRouterAPIError("OpenRouter API вернул HTTP 503")
+
+    def unexpected_checker(model):
+        pytest.fail("Checker не должен запускаться без модели")
+
+    app.dependency_overrides[get_agent] = lambda: AnalystAgent(FailingModelProvider(), unexpected_checker)
+    try:
+        response = TestClient(app).post("/api/analyze", json={"requirements": DEMO_REQUIREMENTS})
+    finally:
+        app.dependency_overrides.pop(get_agent, None)
+    assert response.status_code == 502
+    assert "behavioral_model" not in response.json()
+
+
 def test_health():
     response = TestClient(app).get("/health")
     assert response.status_code == 200
@@ -115,16 +181,6 @@ def test_fake_provider_rejects_unrelated_requirements():
     assert "демонстрационный сценарий" in response.json()["detail"]
 
 
-@pytest.fixture
-def configured_tlc(monkeypatch):
-    tools = Path(__file__).parents[1] / ".tools"
-    java = tools / "java" / "bin" / "java.exe"
-    jar = tools / "tla2tools.jar"
-    if not java.is_file() or not jar.is_file():
-        pytest.skip("Локальные Java и TLC не настроены")
-    monkeypatch.setenv("MODEL_CHECKER_JAVA", str(java))
-    monkeypatch.setenv("MODEL_CHECKER_TLA2TOOLS_JAR", str(jar))
-    monkeypatch.setenv("MODEL_CHECKER_TEMP_DIR", str(tools))
 
 
 @pytest.mark.integration
