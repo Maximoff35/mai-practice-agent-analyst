@@ -9,11 +9,12 @@ from .references import (
 )
 from .tla import TlaFiles, compile_expression, generate_tla
 from .validator import ModelValidationError, validate_model
-from .result import TraceState, TLCStatistics, VerificationResult, VerificationStatus
+from .result import PropertyResult, TraceState, TLCStatistics, VerificationResult, VerificationStatus
 from .runner import TLCConfig, verify
 
 __all__ = [
     "BehavioralModel",
+    "PropertyResult",
     "SourceReference",
     "SourceReferenceValidationError",
     "attach_result_references",

@@ -85,6 +85,8 @@ class FakeLLMProvider:
         model: BehavioralModel,
         result: VerificationResult,
     ) -> str:
+        if any(prop.type == "reachable" for prop in model.properties):
+            return "Результаты отдельных свойств приведены в property_results; witness содержит путь к достижимой цели."
         if result.status == VerificationStatus.PROPERTY_VIOLATED:
             states = result.counterexample
             if [state.transition for state in states] == [None, "Approve", "Cancel", "Execute"]:

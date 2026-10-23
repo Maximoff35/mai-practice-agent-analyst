@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -38,6 +39,19 @@ class TraceState(BaseModel):
     related_requirements: list[SourceReference] = Field(default_factory=list)
 
 
+class PropertyResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    property_name: str
+    property_type: Literal["invariant", "forbidden_state", "reachable"]
+    status: VerificationStatus
+    message: str | None = None
+    counterexample: list[TraceState] = Field(default_factory=list)
+    witness: list[TraceState] = Field(default_factory=list)
+    related_requirements: list[SourceReference] = Field(default_factory=list)
+    statistics: TLCStatistics = Field(default_factory=TLCStatistics)
+
+
 class VerificationResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -45,6 +59,8 @@ class VerificationResult(BaseModel):
     message: str | None = None
     violated_property: str | None = None
     counterexample: list[TraceState] = Field(default_factory=list)
+    witness: list[TraceState] = Field(default_factory=list)
+    property_results: list[PropertyResult] = Field(default_factory=list)
     related_requirements: list[SourceReference] = Field(default_factory=list)
     statistics: TLCStatistics = Field(default_factory=TLCStatistics)
     stdout: str = ""

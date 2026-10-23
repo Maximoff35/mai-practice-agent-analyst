@@ -65,7 +65,7 @@ class Transition(StrictModel):
 
 class Property(StrictModel):
     name: Identifier
-    type: Literal["invariant", "forbidden_state"]
+    type: Literal["invariant", "forbidden_state", "reachable"]
     expression: Expression
     source_reference: SourceReference | None = Field(
         default=None, exclude_if=lambda value: value is None

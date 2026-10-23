@@ -13,6 +13,10 @@ const TYPE_INFO: Record<
     badge: "border-red-400/40 text-red-400/90",
     description: "Состояние, описанное выражением, не должно быть достижимо.",
   },
+  reachable: {
+    badge: "border-accent/40 text-accent",
+    description: "Существует хотя бы один допустимый путь к указанному состоянию.",
+  },
 };
 
 export default function PropertyCard({ properties }: { properties: Property[] }) {
@@ -31,7 +35,7 @@ export default function PropertyCard({ properties }: { properties: Property[] })
       <p className="text-sm leading-relaxed text-foreground/70">
         Свойства формализуют требования к системе: агент выводит их из
         текстового описания вместе с моделью, а model checker проверяет
-        выполнимость на всех достижимых состояниях.
+        инварианты и запреты на всех достижимых состояниях, а для reachable ищет путь к цели.
       </p>
 
       <div className="flex flex-col gap-2">
