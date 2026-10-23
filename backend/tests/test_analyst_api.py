@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from analyst import AnalystAgent, FakeLLMProvider
 from api.main import app
-from model_checker import VerificationResult, VerificationStatus
+from model_checker import TraceState, VerificationResult, VerificationStatus
 
 
 DEMO_REQUIREMENTS = (
@@ -33,6 +33,8 @@ def test_agent_calls_checker_once_and_returns_structured_result():
     assert result.behavioral_model == calls[0]
     assert result.verification_result.status == VerificationStatus.PROPERTY_HOLDS
     assert result.counterexample is None
+    assert result.related_requirements == []
+    assert result.verification_result.related_requirements == []
     assert "не нашёл" in result.explanation
 
 
@@ -52,6 +54,47 @@ def test_agent_accepts_another_provider_without_changes(buggy_model):
     )
     result = agent.analyze("Любой текст")
     assert result.explanation == "Объяснение другого провайдера"
+
+
+def test_agent_returns_verified_related_requirements(buggy_model):
+    requirements = "[REQ-1] approve заявку. [REQ-2] cancel заявку."
+    buggy_model["transitions"][0]["source_reference"] = {
+        "id": "REQ-1",
+        "fragment": "approve заявку.",
+    }
+    buggy_model["transitions"][1]["source_reference"] = {
+        "id": "REQ-2",
+        "fragment": "cancel заявку.",
+    }
+    buggy_model["properties"][0]["source_reference"] = {
+        "id": "REQ-2",
+        "fragment": "cancel заявку.",
+    }
+
+    class ReferencingProvider:
+        def build_model(self, requirements):
+            from model_checker import BehavioralModel
+
+            return BehavioralModel.model_validate(buggy_model)
+
+        def explain_result(self, requirements, model, result):
+            return "Связанный результат"
+
+    result = AnalystAgent(
+        ReferencingProvider(),
+        checker=lambda model: VerificationResult(
+            status=VerificationStatus.PROPERTY_VIOLATED,
+            violated_property="NoExecutedAfterCancel",
+            counterexample=[
+                TraceState(number=1, values={}, transition=None),
+                TraceState(number=2, values={}, transition="Approve"),
+                TraceState(number=3, values={}, transition="Cancel"),
+            ],
+        ),
+    ).analyze(requirements)
+
+    assert [reference.id for reference in result.related_requirements] == ["REQ-2", "REQ-1"]
+    assert [reference.id for reference in result.counterexample[2].related_requirements] == ["REQ-2"]
 
 
 def test_health():

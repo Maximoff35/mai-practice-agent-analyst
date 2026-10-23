@@ -8,7 +8,14 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
-from model_checker import BehavioralModel, ModelValidationError, VerificationResult, validate_model
+from model_checker import (
+    BehavioralModel,
+    ModelValidationError,
+    SourceReferenceValidationError,
+    VerificationResult,
+    validate_model,
+    validate_source_references,
+)
 
 from .config import get_setting
 
@@ -45,6 +52,8 @@ Transition: name, guard, effects. Выражения: {"var":"name"}, {"eq":[ter
 {"and":[predicate,predicate,...]}, {"or":[predicate,predicate,...]}, {"not":predicate}. Term — литерал или ссылка var.
 Effect: {"set":["variable", literal_or_var]}. Неизменённые переменные не нужно указывать в effects.
 Property: name, type (invariant либо forbidden_state), expression (булево выражение).
+Необязательная ссылка: source_reference={"id":"REQ-1","fragment":"точный фрагмент"}.
+Используй ссылку только для маркера [REQ-1], реально присутствующего во входном тексте, и копируй fragment дословно.
 Сохраняй смысл требований. Не придумывай исправление описанной логики: если отмена не сбрасывает признак согласования,
 модель должна сохранить этот признак. Добавляй только конечные домены и проверяемые свойства.
 Свойство не должно запрещать поведение, которое требования явно разрешают: разрешённое исполнение после согласования
@@ -144,8 +153,9 @@ class OpenRouterProvider:
         except json.JSONDecodeError as error:
             raise OpenRouterResponseError("OpenRouter вернул невалидный JSON модели") from error
         try:
-            return validate_model(data)
-        except (ValidationError, ModelValidationError, ValueError, TypeError) as error:
+            model = validate_model(data)
+            return validate_source_references(model, requirements)
+        except (ValidationError, ModelValidationError, SourceReferenceValidationError, ValueError, TypeError) as error:
             raise OpenRouterModelError(f"OpenRouter вернул невалидную BehavioralModel: {error}") from error
 
     def explain_result(

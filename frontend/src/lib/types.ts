@@ -20,6 +20,11 @@ export type Variable = EnumVariable | BooleanVariable | IntegerVariable;
 
 export type Expression = unknown;
 
+export type SourceReference = {
+  id: string;
+  fragment: string;
+};
+
 export type SetEffect = {
   set: [string, Expression];
 };
@@ -28,6 +33,7 @@ export type Transition = {
   name: string;
   guard: Expression;
   effects: SetEffect[];
+  source_reference?: SourceReference;
 };
 
 export type PropertyType = "invariant" | "forbidden_state";
@@ -36,6 +42,7 @@ export type Property = {
   name: string;
   type: PropertyType;
   expression: Expression;
+  source_reference?: SourceReference;
 };
 
 export type BehavioralModel = {
@@ -67,6 +74,7 @@ export type TraceState = {
   values: Record<string, TraceValue>;
   transition: string | null;
   tlc_label: string | null;
+  related_requirements: SourceReference[];
 };
 
 export type VerificationResult = {
@@ -78,6 +86,7 @@ export type VerificationResult = {
   stdout: string;
   stderr: string;
   exit_code: number | null;
+  related_requirements: SourceReference[];
 };
 
 export type AnalysisResult = {
@@ -85,5 +94,6 @@ export type AnalysisResult = {
   behavioral_model: BehavioralModel;
   verification_result: VerificationResult;
   counterexample: TraceState[] | null;
+  related_requirements: SourceReference[];
   explanation: string;
 };
