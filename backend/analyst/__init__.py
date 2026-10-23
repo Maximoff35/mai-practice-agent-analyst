@@ -11,6 +11,7 @@ from .openrouter import (
     OpenRouterProvider,
     OpenRouterResponseError,
 )
+from model_checker import SourceReferenceValidationError
 
 __all__ = [
     "AnalysisResult",
@@ -28,5 +29,6 @@ __all__ = [
     "OpenRouterModelError",
     "OpenRouterProvider",
     "OpenRouterResponseError",
+    "SourceReferenceValidationError",
     "UnsupportedRequirementsError",
 ]

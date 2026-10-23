@@ -8,7 +8,14 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
-from model_checker import BehavioralModel, ModelValidationError, VerificationResult, validate_model
+from model_checker import (
+    BehavioralModel,
+    ModelValidationError,
+    SourceReferenceValidationError,
+    VerificationResult,
+    validate_model,
+    validate_source_references,
+)
 
 from .config import get_setting
 from .prompts import EXPLANATION_INSTRUCTIONS, MODEL_INSTRUCTIONS
@@ -121,8 +128,9 @@ class OpenRouterProvider:
         except json.JSONDecodeError as error:
             raise OpenRouterResponseError("OpenRouter вернул невалидный JSON модели") from error
         try:
-            return validate_model(data)
-        except (ValidationError, ModelValidationError, ValueError, TypeError) as error:
+            model = validate_model(data)
+            return validate_source_references(model, requirements)
+        except (ValidationError, ModelValidationError, SourceReferenceValidationError, ValueError, TypeError) as error:
             raise OpenRouterModelError(f"OpenRouter вернул невалидную BehavioralModel: {error}") from error
 
     def explain_result(

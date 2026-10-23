@@ -17,6 +17,7 @@ from analyst import (
     OpenRouterConfigurationError,
     OpenRouterError,
     OpenRouterProvider,
+    SourceReferenceValidationError,
     UnsupportedRequirementsError,
 )
 from analyst.config import get_setting
@@ -63,6 +64,8 @@ def analyze(request: AnalyzeRequest, agent: Annotated[AnalystAgent, Depends(get_
     try:
         return agent.analyze(request.requirements)
     except UnsupportedRequirementsError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except SourceReferenceValidationError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     except (OpenRouterError, MAIError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error

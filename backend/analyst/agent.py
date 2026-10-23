@@ -4,9 +4,17 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from model_checker import BehavioralModel, TraceState, VerificationResult, verify
+from model_checker import (
+    BehavioralModel,
+    SourceReference,
+    TraceState,
+    VerificationResult,
+    attach_result_references,
+    validate_source_references,
+    verify,
+)
 
 from .provider import LLMProvider
 
@@ -18,6 +26,7 @@ class AnalysisResult(BaseModel):
     behavioral_model: BehavioralModel
     verification_result: VerificationResult
     counterexample: list[TraceState] | None = None
+    related_requirements: list[SourceReference] = Field(default_factory=list)
     explanation: str
 
 
@@ -32,7 +41,9 @@ class AnalystAgent:
 
     def analyze(self, requirements: str) -> AnalysisResult:
         model = self.provider.build_model(requirements)
+        validate_source_references(model, requirements)
         verification = self.checker(model)
+        verification = attach_result_references(verification, model)
         try:
             explanation = self.provider.explain_result(requirements, model, verification)
             if not isinstance(explanation, str) or not explanation.strip():
@@ -52,5 +63,6 @@ class AnalystAgent:
             behavioral_model=model,
             verification_result=verification,
             counterexample=verification.counterexample or None,
+            related_requirements=verification.related_requirements,
             explanation=explanation,
         )

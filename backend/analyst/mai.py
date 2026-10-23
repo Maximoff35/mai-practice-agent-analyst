@@ -8,7 +8,7 @@ import ssl
 
 import httpx
 
-from model_checker import BehavioralModel, VerificationResult, validate_model
+from model_checker import BehavioralModel, VerificationResult, validate_model, validate_source_references
 
 from .config import get_setting
 from .prompts import EXPLANATION_INSTRUCTIONS, MODEL_INSTRUCTIONS
@@ -115,7 +115,7 @@ class MAIProvider:
             structured=True,
         )
         try:
-            return validate_model(json.loads(content))
+            return validate_source_references(validate_model(json.loads(content)), requirements)
         except (ValueError, TypeError) as error:
             # Validation details include untrusted model values; keep them out of HTTP errors.
             raise MAIResponseError("API МАИ вернул невалидную BehavioralModel или JSON") from error

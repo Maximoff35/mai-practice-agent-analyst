@@ -6,6 +6,7 @@ import json
 import re
 from typing import Any
 
+from .references import attach_result_references
 from .result import TLCStatistics, TraceState, VerificationResult, VerificationStatus
 from .schemas import BehavioralModel
 
@@ -144,12 +145,13 @@ def parse_tlc_output(
         states = _states(output)
         if model:
             _label_transitions(states, model)
-        return VerificationResult(
+        result = VerificationResult(
             status=VerificationStatus.PROPERTY_VIOLATED,
             violated_property=violation.group(1),
             counterexample=states,
             **common,
         )
+        return attach_result_references(result, model) if model else result
     if _ANY_INVARIANT.search(output):
         return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="Unrecognized TLC invariant violation", **common)
     if _MODEL_ERROR.search(output):
