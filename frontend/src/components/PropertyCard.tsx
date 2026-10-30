@@ -1,5 +1,6 @@
 import type { Property, PropertyType } from "@/lib/types";
 import { formatExpression } from "@/lib/format";
+import SourceReferences from "@/components/SourceReferences";
 
 const TYPE_INFO: Record<
   PropertyType,
@@ -62,6 +63,14 @@ export default function PropertyCard({ properties }: { properties: Property[] })
               <p className="text-xs leading-relaxed text-foreground/60">
                 {info.description}
               </p>
+              <SourceReferences
+                references={
+                  property.source_reference
+                    ? [property.source_reference]
+                    : undefined
+                }
+                label="Фрагмент требований"
+              />
             </div>
           );
         })}

@@ -99,4 +99,108 @@ describe("страница анализа", () => {
     );
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   });
+
+  it("«Уточнить требования» подставляет текст текущего анализа и сохраняет результат", async () => {
+    fetchMock.mockResolvedValue(
+      okResponse(makeResult({ requirements: "Текст из ответа backend" })),
+    );
+
+    render(<Home />);
+    await userEvent.type(
+      screen.getByLabelText("Описание поведения системы"),
+      "Черновик пользователя",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Проанализировать" }),
+    );
+    await screen.findByRole("tablist");
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Уточнить требования и проверить снова",
+      }),
+    );
+
+    expect(
+      screen.getByLabelText("Описание поведения системы"),
+    ).toHaveValue("Текст из ответа backend");
+    expect(
+      screen.getByText(/результат предыдущего анализа/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+  });
+
+  it("при повторной проверке не показывает старую трассу как результат нового текста", async () => {
+    let resolveSecondFetch: (value: unknown) => void = () => {};
+    fetchMock
+      .mockResolvedValueOnce(
+        okResponse(makeResult({ requirements: "Первый текст" })),
+      )
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (resolveSecondFetch = resolve)),
+      );
+
+    render(<Home />);
+    await userEvent.type(
+      screen.getByLabelText("Описание поведения системы"),
+      "Первый текст",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Проанализировать" }),
+    );
+    await screen.findByRole("tablist");
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Уточнить требования и проверить снова",
+      }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Проанализировать" }),
+    );
+
+    const dialog = await screen.findByRole("alertdialog");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Проанализировать" }),
+    );
+
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+
+    resolveSecondFetch(
+      okResponse(makeResult({ requirements: "Первый текст" })),
+    );
+    expect(await screen.findByRole("tablist")).toBeInTheDocument();
+  });
+
+  it("после ошибки при уточнении не оставляет старый результат", async () => {
+    fetchMock
+      .mockResolvedValueOnce(okResponse(makeResult()))
+      .mockResolvedValueOnce(errorResponse(500, "Сбой проверки"));
+
+    render(<Home />);
+    await userEvent.type(
+      screen.getByLabelText("Описание поведения системы"),
+      "Заявка и отмена",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Проанализировать" }),
+    );
+    await screen.findByRole("tablist");
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Уточнить требования и проверить снова",
+      }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Проанализировать" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Проанализировать" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Сбой проверки");
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  });
 });
