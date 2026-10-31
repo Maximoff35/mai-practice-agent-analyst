@@ -1,5 +1,6 @@
 import type { VerificationResult, VerificationStatus } from "@/lib/types";
 import CounterexampleSteps from "@/components/CounterexampleSteps";
+import SourceReferences from "@/components/SourceReferences";
 
 const STATUS_INFO: Record<
   VerificationStatus,
@@ -97,6 +98,10 @@ export default function VerificationResultCard({
         )}
       </div>
 
+      {!hasIndividualResults && (
+        <SourceReferences references={result.related_requirements} />
+      )}
+
       {statistics.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {statistics.map(([key, value]) => (
@@ -122,6 +127,10 @@ export default function VerificationResultCard({
           {STATUS_INFO[item.status].warning && (
             <p className="text-sm text-amber-400/80">{STATUS_INFO[item.status].warning}</p>
           )}
+          <SourceReferences
+            references={item.related_requirements}
+            label="Требования свойства"
+          />
           {item.witness.length > 0 && <CounterexampleSteps states={item.witness}
             title={`Путь к цели: ${item.property_name}`}
             description="Допустимая последовательность шагов до целевого состояния." />}
@@ -131,6 +140,16 @@ export default function VerificationResultCard({
         <CounterexampleSteps
           states={result.counterexample}
           markLast={result.status === "PROPERTY_VIOLATED"}
+        />
+      ) : (result.witness?.length ?? 0) > 0 ? (
+        <CounterexampleSteps
+          states={result.witness ?? []}
+          title={
+            result.violated_property
+              ? `Путь к цели: ${result.violated_property}`
+              : "Путь к цели"
+          }
+          description="Допустимая последовательность шагов до целевого состояния."
         />
       ) : (
         result.status === "PROPERTY_HOLDS" && (

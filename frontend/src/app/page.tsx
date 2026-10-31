@@ -80,6 +80,13 @@ export default function Home() {
     void runAnalysis(requirements.trim());
   }
 
+  function refineRequirements() {
+    setRequirements(result?.requirements ?? requirements);
+    setEditing(true);
+    setFormState("idle");
+    setErrorMessage(null);
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-[62rem] flex-1 flex-col gap-6 px-4 py-8 sm:gap-8 sm:px-6 sm:py-12">
       <header className="flex flex-col gap-2">
@@ -99,6 +106,13 @@ export default function Home() {
 
       {editing ? (
         <section className="flex flex-col gap-4 p-6">
+          {result && (
+            <p className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2 text-xs leading-relaxed text-foreground/65">
+              Ниже показан результат предыдущего анализа. Изменённый текст
+              будет проверен заново после подтверждения и заменит старый
+              результат.
+            </p>
+          )}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <RequirementsInput
               value={requirements}
@@ -162,24 +176,34 @@ export default function Home() {
         </section>
       ) : (
         <section className="flex flex-col gap-4 p-6">
-          <button
-            type="button"
-            onClick={() => {
-              setEditing(true);
-              setFormState("idle");
-              setErrorMessage(null);
-            }}
-            className="inline-flex w-fit items-center gap-2 rounded-xl border border-accent/60 bg-accent/10 px-6 py-2.5 text-sm font-medium text-accent transition-colors duration-300 hover:bg-accent/20"
-          >
-            <span aria-hidden="true" className="text-base leading-none">
-              +
-            </span>
-            Новая модель
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(true);
+                setFormState("idle");
+                setErrorMessage(null);
+              }}
+              className="inline-flex w-fit items-center gap-2 rounded-xl border border-accent/60 bg-accent/10 px-6 py-2.5 text-sm font-medium text-accent transition-colors duration-300 hover:bg-accent/20"
+            >
+              <span aria-hidden="true" className="text-base leading-none">
+                +
+              </span>
+              Новая модель
+            </button>
+
+            <button
+              type="button"
+              onClick={refineRequirements}
+              className="inline-flex w-fit items-center gap-2 rounded-xl border border-accent/60 bg-accent/15 px-6 py-2.5 text-sm font-medium text-accent transition-colors duration-300 hover:bg-accent/25"
+            >
+              Уточнить требования и проверить снова
+            </button>
+          </div>
 
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium text-foreground/80">
-              Описание поведения системы
+              Текст текущего анализа
             </span>
             <p className="console-scrollbar max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-foreground/15 bg-transparent px-4 py-3 pr-6 text-sm leading-relaxed text-foreground/75">
               {result?.requirements ?? requirements}

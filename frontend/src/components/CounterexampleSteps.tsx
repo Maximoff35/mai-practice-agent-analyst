@@ -1,4 +1,5 @@
 import type { TraceState, TraceValue } from "@/lib/types";
+import SourceReferences from "@/components/SourceReferences";
 
 function displayValue(value: TraceValue): string {
   return String(value);
@@ -72,6 +73,11 @@ export default function CounterexampleSteps({
                     </code>
                   ))}
                 </div>
+
+                <SourceReferences
+                  references={state.related_requirements}
+                  label="Требование к переходу"
+                />
 
                 {state.tlc_label && (
                   <span className="break-all text-[10px] text-foreground/40">

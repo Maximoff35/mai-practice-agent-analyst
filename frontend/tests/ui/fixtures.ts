@@ -1,9 +1,14 @@
 import type {
   AnalysisResult,
+  SourceReference,
   TraceState,
   VerificationResult,
   VerificationStatus,
 } from "@/lib/types";
+
+export function makeReference(id: string, fragment: string): SourceReference {
+  return { id, fragment };
+}
 
 export function makeTrace(): TraceState[] {
   return [
