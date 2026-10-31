@@ -135,12 +135,21 @@ export default function VerificationResultCard({
             title={`Путь к цели: ${item.property_name}`}
             description="Допустимая последовательность шагов до целевого состояния." />}
           {item.counterexample.length > 0 && <CounterexampleSteps states={item.counterexample} markLast />}
+          {(item.deadlock_path?.length ?? 0) > 0 && <CounterexampleSteps states={item.deadlock_path ?? []}
+            title={`Путь к блокировке: ${item.property_name}`}
+            description="Последнее состояние не имеет разрешённых бизнес-переходов и не является допустимым завершением."
+            markLast />}
         </div>
       )) : hasCounterexample ? (
         <CounterexampleSteps
           states={result.counterexample}
           markLast={result.status === "PROPERTY_VIOLATED"}
         />
+      ) : (result.deadlock_path?.length ?? 0) > 0 ? (
+        <CounterexampleSteps states={result.deadlock_path ?? []}
+          title="Путь к блокировке"
+          description="Последнее состояние не имеет разрешённых бизнес-переходов и не является допустимым завершением."
+          markLast />
       ) : (result.witness?.length ?? 0) > 0 ? (
         <CounterexampleSteps
           states={result.witness ?? []}

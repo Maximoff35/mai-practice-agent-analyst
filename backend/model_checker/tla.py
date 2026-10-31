@@ -64,8 +64,8 @@ def _definition(name: str, clauses: list[str]) -> str:
 def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Model") -> TlaFiles:
     """Return .tla and .cfg contents for a fully validated finite model."""
     model = validate_model(model)
-    if len(model.properties) > 1 and any(prop.type == "reachable" for prop in model.properties):
-        raise ValueError("Модель с reachable проверяйте через verify; отдельный модуль TLC требует одного свойства")
+    if len(model.properties) > 1 and any(prop.type in {"reachable", "deadlock_free"} for prop in model.properties):
+        raise ValueError("Модель с reachable/deadlock_free проверяйте через verify; отдельный модуль TLC требует одного свойства")
     if not module_name.isascii() or not module_name or not module_name[0].isalpha() or not all(
         char.isalnum() or char == "_" for char in module_name
     ):
@@ -101,6 +101,8 @@ def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Mo
     # An explicit stutter action keeps the transition relation total. This lets
     # TLC check state properties even for terminal states without a deadlock error.
     choices = [f"Step_{transition.name}" for transition in model.transitions]
+    if any(prop.type == "deadlock_free" for prop in model.properties):
+        lines.extend(["", "BusinessNext ==\n" + "\n".join(f"  \\/ {choice}" for choice in choices)])
     choices.append("UNCHANGED vars")
     lines.extend(
         [
@@ -111,7 +113,11 @@ def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Mo
         ]
     )
     for prop in model.properties:
-        expression = compile_expression(prop.expression)
+        if prop.type == "deadlock_free":
+            terminal = compile_expression(prop.terminal_states) if prop.terminal_states is not None else "FALSE"
+            expression = f"(({terminal}) \\/ (ENABLED BusinessNext)) /\\ TypeOK"
+        else:
+            expression = compile_expression(prop.expression)
         if prop.type in {"forbidden_state", "reachable"}:
             expression = f"~({expression})"
         if prop.type == "reachable":

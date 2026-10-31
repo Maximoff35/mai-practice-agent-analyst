@@ -21,13 +21,14 @@ def main() -> None:
     parser.add_argument("--model", required=True)
     parser.add_argument("--output", type=Path, required=True, help="Локальный JSON-отчёт без ключей и технических логов")
     parser.add_argument("--scenario", help="Идентификатор одного сценария; по умолчанию все")
+    parser.add_argument("--scenarios", type=Path, default=Path(__file__).with_name("scenarios.json"), help="JSON-файл контрольных сценариев")
     args = parser.parse_args()
     provider = MAIProvider(
         get_setting("MAI_API_KEY") or "", args.model,
         base_url=get_setting("MAI_BASE_URL") or "https://api-ai.mai.ru",
         timeout_seconds=float(get_setting("MAI_TIMEOUT_SECONDS", "90") or "90"),
     )
-    scenarios = json.loads(Path(__file__).with_name("scenarios.json").read_text(encoding="utf-8"))
+    scenarios = json.loads(args.scenarios.read_text(encoding="utf-8"))
     if args.scenario:
         scenarios = [scenario for scenario in scenarios if scenario["id"] == args.scenario]
         if not scenarios:

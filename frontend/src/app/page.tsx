@@ -215,7 +215,15 @@ export default function Home() {
       {formState === "loading" ? (
         <ModelCardSkeleton />
       ) : (
-        result && <AnalysisTabs result={result} />
+        result && <>
+          {editing && <section className="flex flex-col gap-2 px-6">
+            <h2 className="text-sm font-medium">Текст предыдущего анализа</h2>
+            <p className="max-h-56 overflow-y-auto break-words whitespace-pre-wrap text-sm text-foreground/75">
+              {result.requirements}
+            </p>
+          </section>}
+          <AnalysisTabs result={result} />
+        </>
       )}
 
       {confirmingExample && (

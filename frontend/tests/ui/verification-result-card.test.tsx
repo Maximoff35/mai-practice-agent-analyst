@@ -15,6 +15,50 @@ const TITLES: Record<VerificationStatus, string> = {
 };
 
 describe("VerificationResultCard", () => {
+  it("показывает путь к блокировке отдельно от цели и контрпримера со ссылками", () => {
+    const reference = makeReference("R1", "Блокировки запрещены");
+    render(<VerificationResultCard result={makeVerification("PROPERTY_VIOLATED", {
+      counterexample: [],
+      property_results: [{ property_name: "NoDeadlock", property_type: "deadlock_free",
+        status: "PROPERTY_VIOLATED", message: "Нет разрешённых бизнес-переходов",
+        counterexample: [], witness: [],
+        deadlock_path: [{ number: 1, values: { ready: true }, transition: null, tlc_label: null,
+          related_requirements: [reference] }],
+        related_requirements: [reference], statistics: {} }],
+    })} explanation="" />);
+    expect(screen.getByText("Путь к блокировке: NoDeadlock")).toBeInTheDocument();
+    expect(screen.getAllByText("[R1]")).toHaveLength(2);
+    expect(screen.queryByText("Контрпример")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Путь к цели/)).not.toBeInTheDocument();
+  });
+
+  it("поддерживает верхнеуровневый deadlock_path без property_results", () => {
+    render(<VerificationResultCard result={makeVerification("PROPERTY_VIOLATED", {
+      counterexample: [], deadlock_path: [{ number: 1, values: { ready: true }, transition: null, tlc_label: null }],
+    })} explanation="" />);
+    expect(screen.getByText("Путь к блокировке")).toBeInTheDocument();
+    expect(screen.queryByText("Контрпример")).not.toBeInTheDocument();
+  });
+
+  it.each(["PROPERTY_HOLDS", "TIMEOUT"] as const)("показывает статус deadlock_free %s без выдуманного пути", (status) => {
+    render(<VerificationResultCard result={makeVerification(status, {
+      property_results: [{ property_name: "NoDeadlock", property_type: "deadlock_free", status,
+        message: null, counterexample: [], witness: [], deadlock_path: [], related_requirements: [], statistics: {} }],
+    })} explanation="" />);
+    expect(screen.queryByText(/Путь к блокировке/)).not.toBeInTheDocument();
+    if (status === "TIMEOUT") expect(screen.getAllByText(/нельзя трактовать как успешный/).length).toBeGreaterThan(0);
+  });
+
+  it("показывает явно заданное допустимое завершение deadlock_free", () => {
+    render(<PropertyCard properties={[{ name: "NoDeadlock", type: "deadlock_free", terminal_states: { var: "done" } }]} />);
+    expect(screen.getByText("Допустимое завершение: done")).toBeInTheDocument();
+  });
+
+  it("не придумывает допустимое завершение deadlock_free", () => {
+    render(<PropertyCard properties={[{ name: "NoDeadlock", type: "deadlock_free" }]} />);
+    expect(screen.getByText("Допустимое завершение не задано")).toBeInTheDocument();
+  });
+
   it("показывает путь reachable как путь к цели, без контрпримера", () => {
     render(<VerificationResultCard result={makeVerification("PROPERTY_HOLDS", {
       property_results: [{ property_name: "Goal", property_type: "reachable", status: "PROPERTY_HOLDS",

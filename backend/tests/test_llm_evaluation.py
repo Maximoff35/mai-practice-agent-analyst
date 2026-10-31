@@ -12,8 +12,10 @@ from model_checker import TLCConfig, VerificationResult, validate_model, verify
 
 
 EVALUATION = Path(__file__).parents[1] / "evaluation"
-SCENARIOS = {row["id"]: row for row in json.loads((EVALUATION / "scenarios.json").read_text(encoding="utf-8"))}
-RUNS = json.loads((EVALUATION / "recorded-qwen36.json").read_text(encoding="utf-8"))["runs"]
+SCENARIOS = {row["id"]: row for filename in ["scenarios.json", "deadlock-scenarios.json"]
+             for row in json.loads((EVALUATION / filename).read_text(encoding="utf-8"))}
+RUNS = [run for filename in ["recorded-qwen36.json", "recorded-deadlock-qwen36.json"]
+        for run in json.loads((EVALUATION / filename).read_text(encoding="utf-8"))["runs"]]
 
 
 @pytest.mark.parametrize("run", RUNS, ids=lambda run: run["id"])
@@ -36,6 +38,9 @@ def test_replay_recorded_mai_responses(run):
     assert len(calls) == 1
     assert result.behavioral_model.model_dump(mode="json") == run["behavioral_model"]
     assert result.explanation == run["explanation"]
+    assert result.verification_result.model_dump(mode="json", exclude={"stdout", "stderr"}) == (
+        VerificationResult.model_validate(run["verification_result"]).model_dump(mode="json", exclude={"stdout", "stderr"})
+    )
     if run["id"].startswith("mutex"):
         assert {variable.name for variable in result.behavioral_model.variables} == {"inA", "inB"}
 
@@ -51,3 +56,12 @@ def test_recorded_explicit_models_with_real_tlc(run):
     assert [state.transition for state in result.counterexample] == [
         state["transition"] for state in run["verification_result"]["counterexample"]
     ]
+    for field in ["witness", "deadlock_path"]:
+        assert [state.values for state in getattr(result, field)] == [
+            state["values"] for state in run["verification_result"].get(field, [])
+        ]
+    for item, recorded in zip(result.property_results, run["verification_result"].get("property_results", []), strict=True):
+        assert item.property_name == recorded["property_name"]
+        assert item.status.value == recorded["status"]
+        for field in ["counterexample", "witness", "deadlock_path"]:
+            assert [state.values for state in getattr(item, field)] == [state["values"] for state in recorded[field]]

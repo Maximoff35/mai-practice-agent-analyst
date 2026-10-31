@@ -1,0 +1,601 @@
+{
+  "started_at": "2026-10-31T18:41:30.460931+00:00",
+  "requested_model": "qwen3.6-35b-a3b",
+  "runs": [
+    {
+      "id": "deadlock_found",
+      "expected_status": "PROPERTY_VIOLATED",
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "phase",
+            "type": "enum",
+            "values": [
+              "Ready",
+              "Done"
+            ]
+          }
+        ],
+        "initial": {
+          "phase": "Ready"
+        },
+        "transitions": [
+          {
+            "name": "Finish",
+            "guard": {
+              "eq": [
+                {
+                  "var": "phase"
+                },
+                "Ready"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "phase",
+                  "Done"
+                ]
+              }
+            ],
+            "source_reference": {
+              "id": "R2",
+              "fragment": "Единственный переход Finish разрешён при phase=Ready и устанавливает phase=Done. Других переходов нет."
+            }
+          }
+        ],
+        "properties": [
+          {
+            "name": "NoDeadlock",
+            "type": "deadlock_free",
+            "source_reference": {
+              "id": "R3",
+              "fragment": "Проверь отсутствие блокировок свойством deadlock_free. Допустимые терминальные состояния НЕ заданы, Done нельзя исключать по имени. Не добавляй переходы и не исправляй правила."
+            }
+          }
+        ]
+      },
+      "verification_result": {
+        "status": "PROPERTY_VIOLATED",
+        "message": "NoDeadlock: PROPERTY_VIOLATED",
+        "violated_property": "NoDeadlock",
+        "counterexample": [],
+        "witness": [],
+        "deadlock_path": [
+          {
+            "number": 1,
+            "values": {
+              "phase": "Ready"
+            },
+            "transition": null,
+            "tlc_label": "Initial predicate",
+            "related_requirements": []
+          },
+          {
+            "number": 2,
+            "values": {
+              "phase": "Done"
+            },
+            "transition": "Finish",
+            "tlc_label": "Step_Finish line 14, col 3 to line 15, col 22 of module Model",
+            "related_requirements": [
+              {
+                "id": "R2",
+                "fragment": "Единственный переход Finish разрешён при phase=Ready и устанавливает phase=Done. Других переходов нет."
+              }
+            ]
+          }
+        ],
+        "property_results": [
+          {
+            "property_name": "NoDeadlock",
+            "property_type": "deadlock_free",
+            "status": "PROPERTY_VIOLATED",
+            "message": "Найдена блокировка: нет разрешённых бизнес-переходов вне допустимого завершения.",
+            "counterexample": [],
+            "witness": [],
+            "deadlock_path": [
+              {
+                "number": 1,
+                "values": {
+                  "phase": "Ready"
+                },
+                "transition": null,
+                "tlc_label": "Initial predicate",
+                "related_requirements": []
+              },
+              {
+                "number": 2,
+                "values": {
+                  "phase": "Done"
+                },
+                "transition": "Finish",
+                "tlc_label": "Step_Finish line 14, col 3 to line 15, col 22 of module Model",
+                "related_requirements": [
+                  {
+                    "id": "R2",
+                    "fragment": "Единственный переход Finish разрешён при phase=Ready и устанавливает phase=Done. Других переходов нет."
+                  }
+                ]
+              }
+            ],
+            "related_requirements": [
+              {
+                "id": "R3",
+                "fragment": "Проверь отсутствие блокировок свойством deadlock_free. Допустимые терминальные состояния НЕ заданы, Done нельзя исключать по имени. Не добавляй переходы и не исправляй правила."
+              },
+              {
+                "id": "R2",
+                "fragment": "Единственный переход Finish разрешён при phase=Ready и устанавливает phase=Done. Других переходов нет."
+              }
+            ],
+            "statistics": {
+              "generated_states": 2,
+              "distinct_states": 2,
+              "queued_states": 0,
+              "graph_depth": 2
+            }
+          }
+        ],
+        "related_requirements": [
+          {
+            "id": "R3",
+            "fragment": "Проверь отсутствие блокировок свойством deadlock_free. Допустимые терминальные состояния НЕ заданы, Done нельзя исключать по имени. Не добавляй переходы и не исправляй правила."
+          },
+          {
+            "id": "R2",
+            "fragment": "Единственный переход Finish разрешён при phase=Ready и устанавливает phase=Done. Других переходов нет."
+          }
+        ],
+        "statistics": {
+          "generated_states": 2,
+          "distinct_states": 2,
+          "queued_states": 0,
+          "graph_depth": 2
+        },
+        "exit_code": 12
+      },
+      "explanation": "Свойство NoDeadlock нарушено: после перехода Finish (R2) процесс попадает в состояние phase=Done, где ни один бизнес-переход недоступен, поскольку Finish требует phase=Ready. Путь блокировки: начальное состояние (Ready) → Finish → Done. Поскольку допустимые терминальные состояния явно не заданы (R3), модель не считает Done завершающим и фиксирует отсутствие разрешённых переходов как блокировку. Это результат проверки конечной модели; чтобы устранить нарушение, можно обсудить гипотезу о явном объявлении Done в terminal_states, однако исходные правила не содержат такого указания.",
+      "elapsed_seconds": 14.54,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "terminal_allowed",
+      "expected_status": "PROPERTY_HOLDS",
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "phase",
+            "type": "enum",
+            "values": [
+              "Ready",
+              "Done"
+            ]
+          }
+        ],
+        "initial": {
+          "phase": "Ready"
+        },
+        "transitions": [
+          {
+            "name": "Finish",
+            "guard": {
+              "eq": [
+                {
+                  "var": "phase"
+                },
+                "Ready"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "phase",
+                  "Done"
+                ]
+              }
+            ],
+            "source_reference": {
+              "id": "R2",
+              "fragment": "Единственный переход Finish разрешён при phase=Ready и устанавливает phase=Done. Других переходов нет."
+            }
+          }
+        ],
+        "properties": [
+          {
+            "name": "NoDeadlock",
+            "type": "deadlock_free",
+            "terminal_states": {
+              "eq": [
+                {
+                  "var": "phase"
+                },
+                "Done"
+              ]
+            },
+            "source_reference": {
+              "id": "R4",
+              "fragment": "Проверь отсутствие блокировок свойством deadlock_free с terminal_states для phase=Done. Не добавляй переходы и не исправляй правила."
+            }
+          }
+        ]
+      },
+      "verification_result": {
+        "status": "PROPERTY_HOLDS",
+        "message": "NoDeadlock: PROPERTY_HOLDS",
+        "violated_property": null,
+        "counterexample": [],
+        "witness": [],
+        "deadlock_path": [],
+        "property_results": [
+          {
+            "property_name": "NoDeadlock",
+            "property_type": "deadlock_free",
+            "status": "PROPERTY_HOLDS",
+            "message": "В полностью исследованной конечной модели блокировок вне допустимого завершения не найдено.",
+            "counterexample": [],
+            "witness": [],
+            "deadlock_path": [],
+            "related_requirements": [
+              {
+                "id": "R4",
+                "fragment": "Проверь отсутствие блокировок свойством deadlock_free с terminal_states для phase=Done. Не добавляй переходы и не исправляй правила."
+              }
+            ],
+            "statistics": {
+              "generated_states": 4,
+              "distinct_states": 2,
+              "queued_states": 0,
+              "graph_depth": 2
+            }
+          }
+        ],
+        "related_requirements": [
+          {
+            "id": "R4",
+            "fragment": "Проверь отсутствие блокировок свойством deadlock_free с terminal_states для phase=Done. Не добавляй переходы и не исправляй правила."
+          }
+        ],
+        "statistics": {
+          "generated_states": 4,
+          "distinct_states": 2,
+          "queued_states": 0,
+          "graph_depth": 2
+        },
+        "exit_code": 0
+      },
+      "explanation": "Свойство **NoDeadlock** подтверждено: в полностью исследованной модели (2 различных состояния, глубина 2) блокировок вне явно допустимого завершения не найдено. Из состояния `phase=Ready` доступен единственный переход **Finish** (R2), ведущий в `phase=Done`; из `Done` переходов нет, но это состояние явно объявлено допустимым завершением (R3, R4), поэтому оно не считается блокировкой. Результат относится только к конечной модели и не доказывает общий прогресс процесса — он лишь подтверждает, что в заданных правилах нет «застрявших» состояний помимо разрешённого терминала.",
+      "elapsed_seconds": 14.48,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "cycle_no_deadlock",
+      "expected_status": "PROPERTY_HOLDS",
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "phase",
+            "type": "enum",
+            "values": [
+              "Ready",
+              "Done"
+            ]
+          }
+        ],
+        "initial": {
+          "phase": "Ready"
+        },
+        "transitions": [
+          {
+            "name": "Finish",
+            "guard": {
+              "eq": [
+                {
+                  "var": "phase"
+                },
+                "Ready"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "phase",
+                  "Done"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Restart",
+            "guard": {
+              "eq": [
+                {
+                  "var": "phase"
+                },
+                "Done"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "phase",
+                  "Ready"
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "NoDeadlock",
+            "type": "deadlock_free"
+          }
+        ]
+      },
+      "verification_result": {
+        "status": "PROPERTY_HOLDS",
+        "message": "NoDeadlock: PROPERTY_HOLDS",
+        "violated_property": null,
+        "counterexample": [],
+        "witness": [],
+        "deadlock_path": [],
+        "property_results": [
+          {
+            "property_name": "NoDeadlock",
+            "property_type": "deadlock_free",
+            "status": "PROPERTY_HOLDS",
+            "message": "В полностью исследованной конечной модели блокировок вне допустимого завершения не найдено.",
+            "counterexample": [],
+            "witness": [],
+            "deadlock_path": [],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 5,
+              "distinct_states": 2,
+              "queued_states": 0,
+              "graph_depth": 2
+            }
+          }
+        ],
+        "related_requirements": [],
+        "statistics": {
+          "generated_states": 5,
+          "distinct_states": 2,
+          "queued_states": 0,
+          "graph_depth": 2
+        },
+        "exit_code": 0
+      },
+      "explanation": "Свойство NoDeadlock подтверждено: в полностью исследованной модели (2 различных состояния, глубина 2) блокировок не найдено. Из состояния Ready всегда доступен переход Finish, а из Done — Restart, поэтому ни одно достижимое состояние не является тупиковым. Допустимое завершение (terminal_states) в требованиях не задано, и модель корректно отражает бесконечный цикл Ready→Done→Ready. Это подтверждает отсутствие блокировок в конечной модели, но не доказывает завершение процесса или прогресс — разрешённый переход в то же состояние (цикл) допустим по исходным требованиям.",
+      "elapsed_seconds": 16.85,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "mixed_properties",
+      "expected_status": "PROPERTY_VIOLATED",
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "phase",
+            "type": "enum",
+            "values": [
+              "Ready",
+              "Done"
+            ]
+          }
+        ],
+        "initial": {
+          "phase": "Ready"
+        },
+        "transitions": [
+          {
+            "name": "Finish",
+            "guard": {
+              "eq": [
+                {
+                  "var": "phase"
+                },
+                "Ready"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "phase",
+                  "Done"
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "CanFinish",
+            "type": "reachable",
+            "expression": {
+              "eq": [
+                {
+                  "var": "phase"
+                },
+                "Done"
+              ]
+            }
+          },
+          {
+            "name": "AlwaysReady",
+            "type": "invariant",
+            "expression": {
+              "eq": [
+                {
+                  "var": "phase"
+                },
+                "Ready"
+              ]
+            }
+          },
+          {
+            "name": "NoDeadlock",
+            "type": "deadlock_free"
+          }
+        ]
+      },
+      "verification_result": {
+        "status": "PROPERTY_VIOLATED",
+        "message": "CanFinish: PROPERTY_HOLDS; AlwaysReady: PROPERTY_VIOLATED; NoDeadlock: PROPERTY_VIOLATED",
+        "violated_property": "AlwaysReady",
+        "counterexample": [
+          {
+            "number": 1,
+            "values": {
+              "phase": "Ready"
+            },
+            "transition": null,
+            "tlc_label": "Initial predicate",
+            "related_requirements": []
+          },
+          {
+            "number": 2,
+            "values": {
+              "phase": "Done"
+            },
+            "transition": "Finish",
+            "tlc_label": "Step_Finish line 14, col 3 to line 15, col 22 of module Model",
+            "related_requirements": []
+          }
+        ],
+        "witness": [],
+        "deadlock_path": [],
+        "property_results": [
+          {
+            "property_name": "CanFinish",
+            "property_type": "reachable",
+            "status": "PROPERTY_HOLDS",
+            "message": "Цель достижима в конечной модели; путь приведён в witness.",
+            "counterexample": [],
+            "witness": [
+              {
+                "number": 1,
+                "values": {
+                  "phase": "Ready"
+                },
+                "transition": null,
+                "tlc_label": "Initial predicate",
+                "related_requirements": []
+              },
+              {
+                "number": 2,
+                "values": {
+                  "phase": "Done"
+                },
+                "transition": "Finish",
+                "tlc_label": "Step_Finish line 14, col 3 to line 15, col 22 of module Model",
+                "related_requirements": []
+              }
+            ],
+            "deadlock_path": [],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 2,
+              "distinct_states": 2,
+              "queued_states": 0,
+              "graph_depth": 2
+            }
+          },
+          {
+            "property_name": "AlwaysReady",
+            "property_type": "invariant",
+            "status": "PROPERTY_VIOLATED",
+            "message": null,
+            "counterexample": [
+              {
+                "number": 1,
+                "values": {
+                  "phase": "Ready"
+                },
+                "transition": null,
+                "tlc_label": "Initial predicate",
+                "related_requirements": []
+              },
+              {
+                "number": 2,
+                "values": {
+                  "phase": "Done"
+                },
+                "transition": "Finish",
+                "tlc_label": "Step_Finish line 14, col 3 to line 15, col 22 of module Model",
+                "related_requirements": []
+              }
+            ],
+            "witness": [],
+            "deadlock_path": [],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 2,
+              "distinct_states": 2,
+              "queued_states": 0,
+              "graph_depth": 2
+            }
+          },
+          {
+            "property_name": "NoDeadlock",
+            "property_type": "deadlock_free",
+            "status": "PROPERTY_VIOLATED",
+            "message": "Найдена блокировка: нет разрешённых бизнес-переходов вне допустимого завершения.",
+            "counterexample": [],
+            "witness": [],
+            "deadlock_path": [
+              {
+                "number": 1,
+                "values": {
+                  "phase": "Ready"
+                },
+                "transition": null,
+                "tlc_label": "Initial predicate",
+                "related_requirements": []
+              },
+              {
+                "number": 2,
+                "values": {
+                  "phase": "Done"
+                },
+                "transition": "Finish",
+                "tlc_label": "Step_Finish line 14, col 3 to line 15, col 22 of module Model",
+                "related_requirements": []
+              }
+            ],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 2,
+              "distinct_states": 2,
+              "queued_states": 0,
+              "graph_depth": 2
+            }
+          }
+        ],
+        "related_requirements": [],
+        "statistics": {
+          "generated_states": null,
+          "distinct_states": null,
+          "queued_states": null,
+          "graph_depth": null
+        },
+        "exit_code": 12
+      },
+      "explanation": "**CanFinish** подтверждён: трасса witness показывает, что из начального состояния phase=Ready переход Finish приводит к phase=Done, то есть цель достижима. **AlwaysReady** нарушен: после того же перехода Finish переменная phase принимает значение Done, что противоречит инварианту «phase всегда Ready» — контрпример состоит из двух шагов (инициализация → Finish). **NoDeadlock** нарушен: в состоянии phase=Done ни один переход не разрешён (Finish требует phase=Ready), а Done не объявлен допустимым завершением, поэтому процесс оказывается в тупике без возможности продолжить.",
+      "elapsed_seconds": 12.81,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    }
+  ]
+}

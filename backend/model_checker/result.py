@@ -43,11 +43,12 @@ class PropertyResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     property_name: str
-    property_type: Literal["invariant", "forbidden_state", "reachable"]
+    property_type: Literal["invariant", "forbidden_state", "reachable", "deadlock_free"]
     status: VerificationStatus
     message: str | None = None
     counterexample: list[TraceState] = Field(default_factory=list)
     witness: list[TraceState] = Field(default_factory=list)
+    deadlock_path: list[TraceState] = Field(default_factory=list)
     related_requirements: list[SourceReference] = Field(default_factory=list)
     statistics: TLCStatistics = Field(default_factory=TLCStatistics)
 
@@ -60,6 +61,7 @@ class VerificationResult(BaseModel):
     violated_property: str | None = None
     counterexample: list[TraceState] = Field(default_factory=list)
     witness: list[TraceState] = Field(default_factory=list)
+    deadlock_path: list[TraceState] = Field(default_factory=list)
     property_results: list[PropertyResult] = Field(default_factory=list)
     related_requirements: list[SourceReference] = Field(default_factory=list)
     statistics: TLCStatistics = Field(default_factory=TLCStatistics)

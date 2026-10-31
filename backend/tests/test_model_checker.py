@@ -82,7 +82,7 @@ def test_expression_compiler(expression, expected):
         (lambda m: m["transitions"][0]["effects"][0]["set"].__setitem__(1, "Unknown"), "outside target domain"),
         (lambda m: m["properties"][0].update(expression={"var": "ghost"}), "unknown variable"),
         (lambda m: m["properties"][0].update(expression={"xor": [True, False]}), "unsupported operator"),
-        (lambda m: m["properties"][0].update(type="deadlock_free"), "literal_error"),
+        (lambda m: m["properties"][0].update(type="unsupported"), "literal_error"),
     ],
 )
 def test_invalid_models(buggy_model, change, message):

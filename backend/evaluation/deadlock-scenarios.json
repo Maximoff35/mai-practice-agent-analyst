@@ -1,0 +1,30 @@
+[
+  {
+    "id": "deadlock_found",
+    "title": "Процесс останавливается без допустимого завершения",
+    "requirements": "[R1] Процесс имеет переменную phase со значениями Ready и Done, изначально Ready. [R2] Единственный переход Finish разрешён при phase=Ready и устанавливает phase=Done. Других переходов нет. [R3] Проверь отсутствие блокировок свойством deadlock_free. Допустимые терминальные состояния НЕ заданы, Done нельзя исключать по имени. Не добавляй переходы и не исправляй правила. У свойства и перехода укажи source_reference с точными цитатами R3 и R2.",
+    "expected_status": "PROPERTY_VIOLATED",
+    "expected_semantics": "Один переход Ready → Done. В Done ни один бизнес-переход не разрешён; допустимого завершения нет. Ожидается deadlock_path с двумя состояниями и Finish, без witness/counterexample."
+  },
+  {
+    "id": "terminal_allowed",
+    "title": "Явно допустимое завершение",
+    "requirements": "[R1] Процесс имеет переменную phase со значениями Ready и Done, изначально Ready. [R2] Единственный переход Finish разрешён при phase=Ready и устанавливает phase=Done. Других переходов нет. [R3] Состояние phase=Done ЯВНО является допустимым завершением процесса. [R4] Проверь отсутствие блокировок свойством deadlock_free с terminal_states для phase=Done. Не добавляй переходы и не исправляй правила. У свойства и перехода укажи source_reference с точными цитатами R4 и R2.",
+    "expected_status": "PROPERTY_HOLDS",
+    "expected_semantics": "Те же переходы. terminal_states точно исключает Done из проверки блокировки, не добавляет действий. Путь блокировки пуст."
+  },
+  {
+    "id": "cycle_no_deadlock",
+    "title": "Циклический процесс без тупика",
+    "requirements": "Процесс имеет переменную phase со значениями Ready и Done, изначально Ready. Finish разрешён при phase=Ready и задаёт Done. Restart разрешён при phase=Done и задаёт Ready. Других переходов нет. Проверь только отсутствие блокировок свойством deadlock_free. Допустимое завершение не задано. Не добавляй свойства завершения процесса: цикл разрешён.",
+    "expected_status": "PROPERTY_HOLDS",
+    "expected_semantics": "Два перехода образуют цикл; в каждом состоянии разрешён бизнес-переход. Это не утверждение завершения/справедливости."
+  },
+  {
+    "id": "mixed_properties",
+    "title": "Независимые результаты трёх свойств",
+    "requirements": "Переменная phase принимает Ready и Done, изначально Ready. Единственный переход Finish разрешён при phase=Ready и устанавливает phase=Done. Других переходов нет; допустимое завершение не задано. Проверь ровно три свойства без исправления модели: CanFinish типа reachable с целью phase=Done; AlwaysReady типа invariant с утверждением phase=Ready; NoDeadlock типа deadlock_free. Не считай Done допустимым завершением.",
+    "expected_status": "PROPERTY_VIOLATED",
+    "expected_semantics": "CanFinish выполняется с witness Ready → Finish → Done; AlwaysReady нарушается с counterexample того же пути; NoDeadlock нарушается с deadlock_path. Ни один результат не скрывает остальные."
+  }
+]

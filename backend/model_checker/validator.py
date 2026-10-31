@@ -173,5 +173,9 @@ def validate_model(model: BehavioralModel | Mapping[str, Any]) -> BehavioralMode
         if prop.name in property_names:
             _fail(path, f"duplicate property name {prop.name!r}")
         property_names.add(prop.name)
-        _predicate(prop.expression.root, variables, f"{path}.expression")
+        if prop.type == "deadlock_free":
+            if prop.terminal_states is not None:
+                _predicate(prop.terminal_states.root, variables, f"{path}.terminal_states")
+        else:
+            _predicate(prop.expression.root, variables, f"{path}.expression")
     return model

@@ -147,12 +147,23 @@ def parse_tlc_output(
             initial_output = output[violation.end():].split(":", 1)[1]
             states = _states("State 1: <Initial predicate>\n" + initial_output)
         prop = next((prop for prop in model.properties if prop.name == violation.group(1)), None) if model else None
-        if prop and prop.type == "reachable":
+        if prop and prop.type in {"reachable", "deadlock_free"}:
             expected_variables = {variable.name for variable in model.variables}
             if not states or any(set(state.values) != expected_variables for state in states):
-                return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="TLC не вернул путь к цели", **common)
+                return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="TLC не вернул полную трассу", **common)
         if model:
             _label_transitions(states, model)
+        if prop and prop.type == "deadlock_free":
+            last = states[-1].values
+            if (prop.terminal_states is not None and _evaluate(prop.terminal_states.root, last)) or any(
+                _evaluate(transition.guard.root, last) for transition in model.transitions
+            ):
+                return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="Трасса TLC не заканчивается блокировкой", **common)
+            return attach_result_references(VerificationResult(
+                status=VerificationStatus.PROPERTY_VIOLATED, violated_property=prop.name,
+                message="Найдена блокировка: нет разрешённых бизнес-переходов вне допустимого завершения.",
+                deadlock_path=states, **common,
+            ), model)
         if prop and prop.type == "reachable":
             if not _evaluate(prop.expression.root, states[-1].values):
                 return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="Трасса TLC не заканчивается в цели", **common)
@@ -181,6 +192,12 @@ def parse_tlc_output(
                 status=VerificationStatus.PROPERTY_VIOLATED,
                 violated_property=model.properties[0].name,
                 message="Цель недостижима в полностью исследованной конечной модели.",
+                **common,
+            ), model)
+        if model and len(model.properties) == 1 and model.properties[0].type == "deadlock_free":
+            return attach_result_references(VerificationResult(
+                status=VerificationStatus.PROPERTY_HOLDS,
+                message="В полностью исследованной конечной модели блокировок вне допустимого завершения не найдено.",
                 **common,
             ), model)
         return VerificationResult(status=VerificationStatus.PROPERTY_HOLDS, **common)
