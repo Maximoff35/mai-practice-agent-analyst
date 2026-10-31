@@ -89,12 +89,12 @@ def _verify_single(model: BehavioralModel | dict[str, Any], config: TLCConfig | 
 
 
 def verify(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = None) -> VerificationResult:
-    """Preserve legacy invariant checks; isolate each property when reachable is present."""
+    """Preserve legacy invariant checks; isolate reachability and deadlock properties."""
     try:
         parsed_model = validate_model(model)
     except (ValidationError, ModelValidationError, ValueError) as error:
         return VerificationResult(status=VerificationStatus.MODEL_INVALID, message=str(error))
-    if not any(prop.type == "reachable" for prop in parsed_model.properties):
+    if not any(prop.type in {"reachable", "deadlock_free"} for prop in parsed_model.properties):
         return _verify_single(parsed_model, config)
 
     config = config or TLCConfig.from_env()
@@ -112,6 +112,7 @@ def verify(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = N
         property_results.append(PropertyResult(
             property_name=prop.name, property_type=prop.type, status=result.status,
             message=result.message, counterexample=result.counterexample, witness=result.witness,
+            deadlock_path=result.deadlock_path,
             related_requirements=result.related_requirements, statistics=result.statistics,
         ))
 
@@ -128,6 +129,7 @@ def verify(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = N
         violated_property=parsed_model.properties[selected].name if status == VerificationStatus.PROPERTY_VIOLATED else None,
         counterexample=representative.counterexample,
         witness=representative.witness if len(results) == 1 else [],
+        deadlock_path=representative.deadlock_path,
         property_results=property_results,
         statistics=representative.statistics if len(results) == 1 else {},
         stdout="\n".join(result.stdout for result in results),

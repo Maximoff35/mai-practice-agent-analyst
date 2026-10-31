@@ -128,6 +128,9 @@ describe("страница анализа", () => {
       screen.getByText(/результат предыдущего анализа/),
     ).toBeInTheDocument();
     expect(screen.getByRole("tablist")).toBeInTheDocument();
+    expect(screen.getByText("Текст предыдущего анализа")).toBeInTheDocument();
+    const previousTextSection = screen.getByRole("heading", { name: "Текст предыдущего анализа" }).closest("section");
+    expect(within(previousTextSection!).getByText("Текст из ответа backend")).toBeInTheDocument();
   });
 
   it("при повторной проверке не показывает старую трассу как результат нового текста", async () => {

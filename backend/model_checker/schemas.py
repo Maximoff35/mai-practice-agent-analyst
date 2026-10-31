@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints, model_validator
 
 
 Identifier = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_]*$")]
@@ -65,11 +65,21 @@ class Transition(StrictModel):
 
 class Property(StrictModel):
     name: Identifier
-    type: Literal["invariant", "forbidden_state", "reachable"]
-    expression: Expression
+    type: Literal["invariant", "forbidden_state", "reachable", "deadlock_free"]
+    expression: Expression | None = Field(default=None, exclude_if=lambda value: value is None)
+    terminal_states: Expression | None = Field(default=None, exclude_if=lambda value: value is None)
     source_reference: SourceReference | None = Field(
         default=None, exclude_if=lambda value: value is None
     )
+
+    @model_validator(mode="after")
+    def require_type_specific_fields(self) -> "Property":
+        if self.type == "deadlock_free":
+            if self.expression is not None:
+                raise ValueError("deadlock_free не допускает expression; допустимое завершение задайте в terminal_states")
+        elif self.expression is None or self.terminal_states is not None:
+            raise ValueError("Для этого типа обязательна expression, terminal_states разрешено только для deadlock_free")
+        return self
 
 
 class BehavioralModel(StrictModel):

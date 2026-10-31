@@ -18,6 +18,10 @@ const TYPE_INFO: Record<
     badge: "border-accent/40 text-accent",
     description: "Существует хотя бы один допустимый путь к указанному состоянию.",
   },
+  deadlock_free: {
+    badge: "border-amber-400/40 text-amber-400/90",
+    description: "Нет достижимых состояний без разрешённых бизнес-переходов, кроме явно допустимого завершения.",
+  },
 };
 
 export default function PropertyCard({ properties }: { properties: Property[] }) {
@@ -36,7 +40,7 @@ export default function PropertyCard({ properties }: { properties: Property[] })
       <p className="text-sm leading-relaxed text-foreground/70">
         Свойства формализуют требования к системе: агент выводит их из
         текстового описания вместе с моделью, а model checker проверяет
-        инварианты и запреты на всех достижимых состояниях, а для reachable ищет путь к цели.
+        инварианты, запреты и отсутствие блокировок, а для reachable ищет путь к цели.
       </p>
 
       <div className="flex flex-col gap-2">
@@ -58,7 +62,11 @@ export default function PropertyCard({ properties }: { properties: Property[] })
                 </span>
               </div>
               <code className="break-words whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
-                {formatExpression(property.expression)}
+                {property.type === "deadlock_free"
+                  ? property.terminal_states === undefined
+                    ? "Допустимое завершение не задано"
+                    : `Допустимое завершение: ${formatExpression(property.terminal_states)}`
+                  : formatExpression(property.expression)}
               </code>
               <p className="text-xs leading-relaxed text-foreground/60">
                 {info.description}

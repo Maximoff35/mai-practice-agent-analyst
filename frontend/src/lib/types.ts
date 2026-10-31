@@ -36,12 +36,13 @@ export type Transition = {
   source_reference?: SourceReference;
 };
 
-export type PropertyType = "invariant" | "forbidden_state" | "reachable";
+export type PropertyType = "invariant" | "forbidden_state" | "reachable" | "deadlock_free";
 
 export type Property = {
   name: string;
   type: PropertyType;
-  expression: Expression;
+  expression?: Expression;
+  terminal_states?: Expression;
   source_reference?: SourceReference;
 };
 
@@ -83,6 +84,7 @@ export type VerificationResult = {
   violated_property: string | null;
   counterexample: TraceState[];
   witness?: TraceState[];
+  deadlock_path?: TraceState[];
   property_results?: PropertyResult[];
   statistics: TLCStatistics;
   stdout: string;
@@ -98,6 +100,7 @@ export type PropertyResult = {
   message: string | null;
   counterexample: TraceState[];
   witness: TraceState[];
+  deadlock_path?: TraceState[];
   related_requirements: SourceReference[];
   statistics: TLCStatistics;
 };

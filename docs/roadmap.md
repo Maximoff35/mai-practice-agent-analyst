@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | [Устойчивость MVP и качество формализации](https://github.com/Maximoff35/mai-practice-agent-analyst/milestone/2) | 16.10.2026 | Максим: [интеграция LLM МАИ #20](https://github.com/Maximoff35/mai-practice-agent-analyst/issues/20), затем [оценка качества #13](https://github.com/Maximoff35/mai-practice-agent-analyst/issues/13). Никита: [сохранение результата TLC при сбое объяснения #14](https://github.com/Maximoff35/mai-practice-agent-analyst/issues/14). Андрей: [качество интерфейса #15](https://github.com/Maximoff35/mai-practice-agent-analyst/issues/15). |
 | [Достижимость и связь с требованиями](https://github.com/Maximoff35/mai-practice-agent-analyst/milestone/3) | 23.10.2026 | Максим: [reachable #16](https://github.com/Maximoff35/mai-practice-agent-analyst/issues/16). Никита: [ссылки модели на требования #17](https://github.com/Maximoff35/mai-practice-agent-analyst/issues/17). |
-| [Блокировки и уточнение требований](https://github.com/Maximoff35/mai-practice-agent-analyst/milestone/4) | 30.10.2026 | Максим: [deadlock_free #18](https://github.com/Maximoff35/mai-practice-agent-analyst/issues/18). Андрей: [ссылки и явное уточнение через UI #19](https://github.com/Maximoff35/mai-practice-agent-analyst/issues/19), после #17. |
+| [Блокировки и уточнение требований](https://github.com/Maximoff35/mai-practice-agent-analyst/milestone/4) | 02.11.2026 (перенесён с 30.10) | Максим: [deadlock_free #18](https://github.com/Maximoff35/mai-practice-agent-analyst/issues/18). Андрей: [ссылки и явное уточнение через UI #19](https://github.com/Maximoff35/mai-practice-agent-analyst/issues/19), после #17. |
 
 ## Подключение LLM МАИ
 
@@ -43,4 +43,17 @@
 Проверка reachable (#16) выполняется через настоящий TLC; независимые результаты
 нескольких свойств, общий timeout и witness описаны в
 [контракте](model-checker-contract.md). Минимальное отображение пути к цели
-подключено; показ цитат и диалог уточнений остаются #19, deadlock_free — #18.
+подключено. На этом этапе показ цитат и уточнение оставались #19, deadlock_free — #18.
+
+## Результат этапа со сроком 2 ноября
+
+31.10 проверен и принят PR #29 по #19: цитаты свойств и трасс, явное уточнение
+текста и повторная проверка. Для #18 реализованы `deadlock_free`, явные
+`terminal_states`, отдельный путь к блокировке и независимые результаты смешанных
+свойств. При редактировании UI показывает исходный текст предыдущего анализа.
+Тесты и реальные прогоны МАИ описаны в [отчёте этапа](deadlock-evaluation.md).
+
+Следующий объём определяем после демонстрации и обратной связи: расширение DSL,
+лимит состояний и помощь с вопросами по неоднозначным требованиям пока не имеют
+нового согласованного срока. Текущий UI поддерживает ручное уточнение;
+автоматическая проверка смысла модели и автономный диалог не реализованы.

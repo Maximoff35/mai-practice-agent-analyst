@@ -69,6 +69,7 @@ def attach_result_references(
 
     counterexample = annotate_path(result.counterexample, related)
     witness = annotate_path(result.witness, related)
+    deadlock_path = annotate_path(result.deadlock_path, related)
     property_results = []
     for item in result.property_results:
         prop = properties.get(item.property_name)
@@ -76,12 +77,15 @@ def attach_result_references(
         _append_unique(item_related, prop.source_reference if prop else None)
         item_counterexample = annotate_path(item.counterexample, item_related)
         item_witness = annotate_path(item.witness, item_related)
+        item_deadlock_path = annotate_path(item.deadlock_path, item_related)
         property_results.append(item.model_copy(update={
             "related_requirements": item_related, "counterexample": item_counterexample, "witness": item_witness,
+            "deadlock_path": item_deadlock_path,
         }))
         for reference in item_related:
             _append_unique(related, reference)
     return result.model_copy(update={
         "counterexample": counterexample, "witness": witness,
+        "deadlock_path": deadlock_path,
         "property_results": property_results, "related_requirements": related,
     })
