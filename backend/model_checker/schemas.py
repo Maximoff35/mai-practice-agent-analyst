@@ -93,8 +93,17 @@ class Property(StrictModel):
         return self
 
 
+class Interpretation(StrictModel):
+    """Самооценка интерпретации LLM, а не доказательство полноты требований."""
+
+    assumptions: list[Annotated[str, StringConstraints(min_length=1)]] = Field(default_factory=list)
+    questions: list[Annotated[str, StringConstraints(min_length=1)]] = Field(default_factory=list)
+    property_rationale: dict[Identifier, Annotated[str, StringConstraints(min_length=1)]] = Field(default_factory=dict)
+
+
 class BehavioralModel(StrictModel):
     variables: list[Variable] = Field(min_length=1)
     initial: dict[Identifier, Any]
     transitions: list[Transition] = Field(min_length=1)
     properties: list[Property] = Field(min_length=1)
+    interpretation: Interpretation | None = Field(default=None, exclude_if=lambda value: value is None)

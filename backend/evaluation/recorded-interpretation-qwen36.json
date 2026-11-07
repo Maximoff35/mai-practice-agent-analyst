@@ -1,0 +1,976 @@
+{
+  "started_at": "2026-11-07T14:18:32.636965+00:00",
+  "requested_model": "qwen3.6-35b-a3b",
+  "runs": [
+    {
+      "id": "application_buggy",
+      "expected_status": "PROPERTY_VIOLATED",
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "Created",
+              "Approved",
+              "Cancelled",
+              "Executed"
+            ]
+          },
+          {
+            "name": "approved",
+            "type": "boolean"
+          },
+          {
+            "name": "cancelled",
+            "type": "boolean"
+          }
+        ],
+        "initial": {
+          "status": "Created",
+          "approved": false,
+          "cancelled": false
+        },
+        "transitions": [
+          {
+            "name": "Approve",
+            "guard": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Created"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Approved"
+                ]
+              },
+              {
+                "set": [
+                  "approved",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Cancel",
+            "guard": {
+              "in": [
+                {
+                  "var": "status"
+                },
+                [
+                  "Created",
+                  "Approved"
+                ]
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Cancelled"
+                ]
+              },
+              {
+                "set": [
+                  "cancelled",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Execute",
+            "guard": {
+              "var": "approved"
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Executed"
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "NoExecutedAfterCancel",
+            "type": "forbidden_state",
+            "expression": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Executed"
+                  ]
+                },
+                {
+                  "var": "cancelled"
+                }
+              ]
+            }
+          }
+        ],
+        "interpretation": {
+          "assumptions": [],
+          "questions": [],
+          "property_rationale": {
+            "NoExecutedAfterCancel": "Пользователь явно указал запрет состояния status=Executed при cancelled=true. Expression описывает само запрещённое состояние (conjunction), как требуется для type=forbidden_state. Модель не исправляется: Execute допустим при approved=true независимо от статуса, а Cancel не сбрасывает approved, поэтому путь Created→Approved→Cancelled→Executed формально возможен и приведёт к нарушению свойства — именно это и проверяется."
+          }
+        }
+      },
+      "verification_result": {
+        "status": "PROPERTY_VIOLATED",
+        "message": null,
+        "violated_property": "NoExecutedAfterCancel",
+        "counterexample": [
+          {
+            "number": 1,
+            "values": {
+              "cancelled": false,
+              "approved": false,
+              "status": "Created"
+            },
+            "transition": null,
+            "tlc_label": "Initial predicate",
+            "related_requirements": []
+          },
+          {
+            "number": 2,
+            "values": {
+              "cancelled": false,
+              "approved": true,
+              "status": "Approved"
+            },
+            "transition": "Approve",
+            "tlc_label": "Step_Approve line 18, col 3 to line 21, col 30 of module Model",
+            "related_requirements": []
+          },
+          {
+            "number": 3,
+            "values": {
+              "cancelled": true,
+              "approved": true,
+              "status": "Cancelled"
+            },
+            "transition": "Cancel",
+            "tlc_label": "Step_Cancel line 24, col 3 to line 27, col 29 of module Model",
+            "related_requirements": []
+          },
+          {
+            "number": 4,
+            "values": {
+              "cancelled": true,
+              "approved": true,
+              "status": "Executed"
+            },
+            "transition": "Execute",
+            "tlc_label": "Step_Execute line 30, col 3 to line 32, col 42 of module Model",
+            "related_requirements": []
+          }
+        ],
+        "witness": [],
+        "deadlock_path": [],
+        "property_results": [],
+        "related_requirements": [],
+        "statistics": {
+          "generated_states": 9,
+          "distinct_states": 6,
+          "queued_states": 1,
+          "graph_depth": 4
+        },
+        "exit_code": 12
+      },
+      "explanation": "Свойство NoExecutedAfterCancel нарушено: трасса Created →(Approve)→ Approved →(Cancel)→ Cancelled →(Execute)→ Executed приводит к запрещённому состоянию status=Executed при cancelled=true. Причина в том, что Cancel не сбрасывает признак approved, а Execute разрешён при approved=true независимо от текущего статуса — именно так и задано в требованиях. Модель точно отражает исходные правила, и нарушение является прямым следствием их комбинации, а не ошибкой интерпретации. Если бизнес-логика не допускает исполнение после отмены, гипотеза для обсуждения: добавить в guard Execute условие cancelled=false или сбрасывать approved при Cancel — но это изменение правил, а не исправление модели.",
+      "elapsed_seconds": 11.58,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "application_fixed",
+      "expected_status": "PROPERTY_HOLDS",
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "Created",
+              "Approved",
+              "Cancelled",
+              "Executed"
+            ]
+          },
+          {
+            "name": "approved",
+            "type": "boolean"
+          },
+          {
+            "name": "cancelled",
+            "type": "boolean"
+          }
+        ],
+        "initial": {
+          "status": "Created",
+          "approved": false,
+          "cancelled": false
+        },
+        "transitions": [
+          {
+            "name": "Approve",
+            "guard": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Created"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Approved"
+                ]
+              },
+              {
+                "set": [
+                  "approved",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Cancel",
+            "guard": {
+              "in": [
+                {
+                  "var": "status"
+                },
+                [
+                  "Created",
+                  "Approved"
+                ]
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Cancelled"
+                ]
+              },
+              {
+                "set": [
+                  "cancelled",
+                  true
+                ]
+              },
+              {
+                "set": [
+                  "approved",
+                  false
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Execute",
+            "guard": {
+              "var": "approved"
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Executed"
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "NoExecutedAfterCancel",
+            "type": "forbidden_state",
+            "expression": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Executed"
+                  ]
+                },
+                {
+                  "var": "cancelled"
+                }
+              ]
+            }
+          }
+        ],
+        "interpretation": {
+          "assumptions": [],
+          "questions": [],
+          "property_rationale": {
+            "NoExecutedAfterCancel": "Пользователь явно указал запрет состояния status=Executed при cancelled=true. Expression описывает само запрещённое состояние (конъюнкция), как требуется для type=forbidden_state."
+          }
+        }
+      },
+      "verification_result": {
+        "status": "PROPERTY_HOLDS",
+        "message": null,
+        "violated_property": null,
+        "counterexample": [],
+        "witness": [],
+        "deadlock_path": [],
+        "property_results": [],
+        "related_requirements": [],
+        "statistics": {
+          "generated_states": 10,
+          "distinct_states": 4,
+          "queued_states": 0,
+          "graph_depth": 3
+        },
+        "exit_code": 0
+      },
+      "explanation": "Свойство NoExecutedAfterCancel подтверждено: запрещённое состояние (status=Executed при cancelled=true) недостижимо — модель полностью исследована (4 различных состояния, глубина 3, очередь пуста, exit_code=0). Модель корректно отражает заданные правила: Execute требует approved=true, а Cancel сбрасывает approved в false, поэтому после отмены заявка не может перейти в Executed. Существенных допущений или открытых вопросов в интерпретации не выявлено; проверка выполнена именно на тех правилах, которые задал пользователь, без исправлений.",
+      "elapsed_seconds": 10.82,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "ambiguous",
+      "expected_status": null,
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "Created",
+              "Approved",
+              "Cancelled",
+              "Executed"
+            ]
+          },
+          {
+            "name": "approved",
+            "type": "boolean"
+          },
+          {
+            "name": "cancelled",
+            "type": "boolean"
+          }
+        ],
+        "initial": {
+          "status": "Created",
+          "approved": false,
+          "cancelled": false
+        },
+        "transitions": [
+          {
+            "name": "approve",
+            "guard": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Created"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Approved"
+                ]
+              },
+              {
+                "set": [
+                  "approved",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "cancel",
+            "guard": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Created"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Cancelled"
+                ]
+              },
+              {
+                "set": [
+                  "cancelled",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "execute",
+            "guard": {
+              "in": [
+                {
+                  "var": "status"
+                },
+                [
+                  "Created",
+                  "Approved"
+                ]
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Executed"
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "ExecuteRequiresApproval",
+            "type": "invariant",
+            "expression": {
+              "not": {
+                "and": [
+                  {
+                    "eq": [
+                      {
+                        "var": "status"
+                      },
+                      "Executed"
+                    ]
+                  },
+                  {
+                    "not": {
+                      "var": "approved"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "interpretation": {
+          "assumptions": [
+            "Критерий безопасности предложен: исполнение (Executed) допустимо только при approved=true; пользователь не определил, что считать безопасным.",
+            "Начальное состояние принято Created, approved=false, cancelled=false; пользователь не указал initial.",
+            "Guards для approve и cancel ограничены состоянием Created; пользователь не задал guards.",
+            "Переход execute разрешён из Created и Approved, поскольку пользователь не ограничил его только Approved; это создаёт потенциальное нарушение инварианта, если исполнение из Created без согласования недопустимо.",
+            "Cancelled считается терминальным состоянием (нет исходящих переходов); пользователь не указал, допустимы ли действия после отмены."
+          ],
+          "questions": [
+            "Что именно означает «всё безопасно»? Предложен критерий: исполнение требует факта согласования (approved=true). Верно ли это, или безопасность включает запрет исполнения после отмены (cancelled=true)?",
+            "Каково начальное состояние заявки? Принято Created с approved=false, cancelled=false.",
+            "Допустимо ли исполнение из Created без предварительного согласования? Если нет, guard execute должен быть status=Approved.",
+            "Можно ли отменить заявку после согласования (Approved→Cancelled)? Можно ли исполнить после отмены?",
+            "Является ли Cancelled терминальным состоянием, или из него возможны дальнейшие переходы?"
+          ],
+          "property_rationale": {
+            "ExecuteRequiresApproval": "Пользователь запросил проверку «всё безопасно» без конкретного критерия. Предложен наиболее естественный инвариант: статус Executed несовместим с approved=false. Это не запрещает все исполнения, а проверяет именно сочетание текущего статуса с фактом согласования."
+          }
+        }
+      },
+      "verification_result": {
+        "status": "PROPERTY_VIOLATED",
+        "message": null,
+        "violated_property": "ExecuteRequiresApproval",
+        "counterexample": [
+          {
+            "number": 1,
+            "values": {
+              "cancelled": false,
+              "approved": false,
+              "status": "Created"
+            },
+            "transition": null,
+            "tlc_label": "Initial predicate",
+            "related_requirements": []
+          },
+          {
+            "number": 2,
+            "values": {
+              "cancelled": false,
+              "approved": false,
+              "status": "Executed"
+            },
+            "transition": "execute",
+            "tlc_label": "Step_execute line 30, col 3 to line 32, col 42 of module Model",
+            "related_requirements": []
+          }
+        ],
+        "witness": [],
+        "deadlock_path": [],
+        "property_results": [],
+        "related_requirements": [],
+        "statistics": {
+          "generated_states": 4,
+          "distinct_states": 4,
+          "queued_states": 2,
+          "graph_depth": 2
+        },
+        "exit_code": 12
+      },
+      "explanation": "Нарушение инварианта ExecuteRequiresApproval найдено на первом же переходе из начального состояния: действие **execute** разрешено из статуса Created (guard допускает Created и Approved), и заявка попадает в Executed при approved=false. Это прямое следствие того, что в модели guard execute не ограничен только Approved, тогда как пользователь в требованиях не указал, что исполнение требует предварительного согласования. Свойство «всё безопасно» не формализовано: предложенный инвариант (Executed ⇒ approved) — лишь одна из возможных трактовок, и вопрос «допустимо ли исполнение из Created без согласования?» остаётся открытым. Если бизнес-правило требует согласования перед исполнением, guard execute следует сузить до status=Approved; это гипотеза для обсуждения, а не обязательное исправление.",
+      "elapsed_seconds": 24.45,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "short_word",
+      "expected_status": null,
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "status",
+            "type": "enum",
+            "values": [
+              "Created",
+              "Executed",
+              "Cancelled"
+            ]
+          },
+          {
+            "name": "approved",
+            "type": "boolean"
+          }
+        ],
+        "initial": {
+          "status": "Created",
+          "approved": false
+        },
+        "transitions": [
+          {
+            "name": "approve",
+            "guard": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Created"
+                  ]
+                },
+                {
+                  "not": {
+                    "var": "approved"
+                  }
+                }
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "approved",
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "name": "execute",
+            "guard": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Created"
+                  ]
+                },
+                {
+                  "var": "approved"
+                }
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Executed"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "cancel",
+            "guard": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Created"
+              ]
+            },
+            "effects": [
+              {
+                "set": [
+                  "status",
+                  "Cancelled"
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "ExecuteAfterApproval",
+            "type": "reachable",
+            "expression": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Executed"
+              ]
+            }
+          },
+          {
+            "name": "CancelBeforeExecution",
+            "type": "reachable",
+            "expression": {
+              "eq": [
+                {
+                  "var": "status"
+                },
+                "Cancelled"
+              ]
+            }
+          },
+          {
+            "name": "NoExecuteWithoutApproval",
+            "type": "forbidden_state",
+            "expression": {
+              "and": [
+                {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Executed"
+                  ]
+                },
+                {
+                  "not": {
+                    "var": "approved"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "interpretation": {
+          "assumptions": [
+            "Начальное состояние — Created, approved=false (не задано явно).",
+            "Согласование моделируется булевым флагом approved, а не отдельным состоянием; заявка остаётся в Created до исполнения или отмены.",
+            "Отмена возможна в любом состоянии до исполнения, включая момент после согласования (guard cancel не требует !approved).",
+            "Состояния Executed и Cancelled терминальны: из них нет переходов.",
+            "Согласование необратимо: после approve=true откат невозможен (переход approve требует !approved)."
+          ],
+          "questions": [
+            "Каково начальное состояние заявки? Предполагаю Created с approved=false — верно ли?",
+            "Можно ли отменить заявку после согласования, но до исполнения? В модели отмена доступна в Created независимо от approved — корректно ли это?",
+            "Является ли Executed терминальным состоянием (нельзя отменить после исполнения)?",
+            "Существует ли переход из Cancelled обратно в Created (повторная подача)?"
+          ],
+          "property_rationale": {
+            "ExecuteAfterApproval": "Требование явно говорит, что заявка после согласования МОЖЕТ быть исполнена — проверяем достижимость Executed.",
+            "CancelBeforeExecution": "Требование явно говорит, что пользователь МОЖЕТ отменить до исполнения — проверяем достижимость Cancelled.",
+            "NoExecuteWithoutApproval": "Из «после согласования может быть исполнена» следует, что исполнение без согласования запрещено. Запрещённое состояние: status=Executed И approved=false."
+          }
+        }
+      },
+      "verification_result": {
+        "status": "PROPERTY_HOLDS",
+        "message": "ExecuteAfterApproval: PROPERTY_HOLDS; CancelBeforeExecution: PROPERTY_HOLDS; NoExecuteWithoutApproval: PROPERTY_HOLDS",
+        "violated_property": null,
+        "counterexample": [],
+        "witness": [],
+        "deadlock_path": [],
+        "property_results": [
+          {
+            "property_name": "ExecuteAfterApproval",
+            "property_type": "reachable",
+            "status": "PROPERTY_HOLDS",
+            "message": "Цель достижима в конечной модели; путь приведён в witness.",
+            "counterexample": [],
+            "witness": [
+              {
+                "number": 1,
+                "values": {
+                  "approved": false,
+                  "status": "Created"
+                },
+                "transition": null,
+                "tlc_label": "Initial predicate",
+                "related_requirements": []
+              },
+              {
+                "number": 2,
+                "values": {
+                  "approved": true,
+                  "status": "Created"
+                },
+                "transition": "approve",
+                "tlc_label": "Step_approve line 16, col 3 to line 18, col 27 of module Model",
+                "related_requirements": []
+              },
+              {
+                "number": 3,
+                "values": {
+                  "approved": true,
+                  "status": "Executed"
+                },
+                "transition": "execute",
+                "tlc_label": "Step_execute line 21, col 3 to line 23, col 29 of module Model",
+                "related_requirements": []
+              }
+            ],
+            "deadlock_path": [],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 5,
+              "distinct_states": 4,
+              "queued_states": 1,
+              "graph_depth": 3
+            }
+          },
+          {
+            "property_name": "CancelBeforeExecution",
+            "property_type": "reachable",
+            "status": "PROPERTY_HOLDS",
+            "message": "Цель достижима в конечной модели; путь приведён в witness.",
+            "counterexample": [],
+            "witness": [
+              {
+                "number": 1,
+                "values": {
+                  "approved": false,
+                  "status": "Created"
+                },
+                "transition": null,
+                "tlc_label": "Initial predicate",
+                "related_requirements": []
+              },
+              {
+                "number": 2,
+                "values": {
+                  "approved": false,
+                  "status": "Cancelled"
+                },
+                "transition": "cancel",
+                "tlc_label": "Step_cancel line 26, col 3 to line 28, col 29 of module Model",
+                "related_requirements": []
+              }
+            ],
+            "deadlock_path": [],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 3,
+              "distinct_states": 3,
+              "queued_states": 1,
+              "graph_depth": 2
+            }
+          },
+          {
+            "property_name": "NoExecuteWithoutApproval",
+            "property_type": "forbidden_state",
+            "status": "PROPERTY_HOLDS",
+            "message": null,
+            "counterexample": [],
+            "witness": [],
+            "deadlock_path": [],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 10,
+              "distinct_states": 5,
+              "queued_states": 0,
+              "graph_depth": 3
+            }
+          }
+        ],
+        "related_requirements": [],
+        "statistics": {
+          "generated_states": null,
+          "distinct_states": null,
+          "queued_states": null,
+          "graph_depth": null
+        },
+        "exit_code": 12
+      },
+      "explanation": "Все три свойства подтверждены в конечной модели: путь Created → approve → execute достигает Executed, путь Created → cancel достигает Cancelled, а запрещённое состояние (Executed без approved) недостижимо. Модель опирается на допущения, не заданные явно в требованиях: начальное состояние Created с approved=false, согласование как булев флаг (заявка остаётся в Created), отмена доступна в Created независимо от approved, а Executed и Cancelled терминальны. Уточните: можно ли отменить заявку именно после согласования, но до исполнения (в модели — да), и является ли Executed необратимым состоянием?",
+      "elapsed_seconds": 21.55,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    },
+    {
+      "id": "missing_initial",
+      "expected_status": null,
+      "behavioral_model": {
+        "variables": [
+          {
+            "name": "ready",
+            "type": "boolean"
+          }
+        ],
+        "initial": {
+          "ready": false
+        },
+        "transitions": [
+          {
+            "name": "Prepare",
+            "guard": {
+              "not": {
+                "var": "ready"
+              }
+            },
+            "effects": [
+              {
+                "set": [
+                  "ready",
+                  true
+                ]
+              }
+            ]
+          }
+        ],
+        "properties": [
+          {
+            "name": "ReachableReady",
+            "type": "reachable",
+            "expression": {
+              "var": "ready"
+            }
+          }
+        ],
+        "interpretation": {
+          "assumptions": [
+            "Начальное значение ready=false предположено, так как в требованиях не задано; Prepare имеет смысл только при ready=false, что косвенно указывает на старт с false."
+          ],
+          "questions": [
+            "Какое начальное значение переменной ready? В требованиях явно не указано; модель предполагает ready=false."
+          ],
+          "property_rationale": {
+            "ReachableReady": "Требование явно просит проверить достижимость ready=true; свойство reachable проверяет существование хотя бы одного пути к состоянию, где ready=true."
+          }
+        }
+      },
+      "verification_result": {
+        "status": "PROPERTY_HOLDS",
+        "message": "ReachableReady: PROPERTY_HOLDS",
+        "violated_property": null,
+        "counterexample": [],
+        "witness": [
+          {
+            "number": 1,
+            "values": {
+              "ready": false
+            },
+            "transition": null,
+            "tlc_label": "Initial predicate",
+            "related_requirements": []
+          },
+          {
+            "number": 2,
+            "values": {
+              "ready": true
+            },
+            "transition": "Prepare",
+            "tlc_label": "Step_Prepare line 14, col 3 to line 15, col 20 of module Model",
+            "related_requirements": []
+          }
+        ],
+        "deadlock_path": [],
+        "property_results": [
+          {
+            "property_name": "ReachableReady",
+            "property_type": "reachable",
+            "status": "PROPERTY_HOLDS",
+            "message": "Цель достижима в конечной модели; путь приведён в witness.",
+            "counterexample": [],
+            "witness": [
+              {
+                "number": 1,
+                "values": {
+                  "ready": false
+                },
+                "transition": null,
+                "tlc_label": "Initial predicate",
+                "related_requirements": []
+              },
+              {
+                "number": 2,
+                "values": {
+                  "ready": true
+                },
+                "transition": "Prepare",
+                "tlc_label": "Step_Prepare line 14, col 3 to line 15, col 20 of module Model",
+                "related_requirements": []
+              }
+            ],
+            "deadlock_path": [],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 2,
+              "distinct_states": 2,
+              "queued_states": 0,
+              "graph_depth": 2
+            }
+          }
+        ],
+        "related_requirements": [],
+        "statistics": {
+          "generated_states": 2,
+          "distinct_states": 2,
+          "queued_states": 0,
+          "graph_depth": 2
+        },
+        "exit_code": 12
+      },
+      "explanation": "Свойство достижимости `ready=true` подтверждено: найден путь из начального состояния (`ready=false`) через переход `Prepare` в состояние `ready=true` (witness из 2 шагов). Поиск остановился на первой найденной цели, поэтому это не полный обход графа, а подтверждение существования хотя бы одного пути. Существенное предположение модели: начальное значение `ready=false` не задано в требованиях явно, а выведено из логики перехода `Prepare`; уточните, действительно ли процесс стартует с `ready=false`.",
+      "elapsed_seconds": 6.58,
+      "response_models": [
+        "qwen3.6-35b-a3b",
+        "qwen3.6-35b-a3b"
+      ]
+    }
+  ]
+}

@@ -106,7 +106,7 @@ def verify(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = N
         if remaining <= 0:
             result = VerificationResult(status=VerificationStatus.TIMEOUT, message="Общий лимит времени проверки исчерпан")
         else:
-            single_model = parsed_model.model_copy(update={"properties": [prop]})
+            single_model = parsed_model.model_copy(update={"properties": [prop], "interpretation": None})
             result = _verify_single(single_model, config.model_copy(update={"timeout_seconds": remaining}))
         results.append(result)
         property_results.append(PropertyResult(

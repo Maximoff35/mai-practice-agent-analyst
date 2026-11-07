@@ -51,6 +51,11 @@ export type BehavioralModel = {
   initial: Record<string, unknown>;
   transitions: Transition[];
   properties: Property[];
+  interpretation?: {
+    assumptions: string[];
+    questions: string[];
+    property_rationale: Record<string, string>;
+  } | null;
 };
 
 export type VerificationStatus =

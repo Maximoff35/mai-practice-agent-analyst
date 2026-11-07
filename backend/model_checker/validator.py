@@ -178,4 +178,8 @@ def validate_model(model: BehavioralModel | Mapping[str, Any]) -> BehavioralMode
                 _predicate(prop.terminal_states.root, variables, f"{path}.terminal_states")
         else:
             _predicate(prop.expression.root, variables, f"{path}.expression")
+    if model.interpretation is not None:
+        unknown = model.interpretation.property_rationale.keys() - property_names
+        if unknown:
+            _fail("interpretation.property_rationale", f"unknown properties {sorted(unknown)}")
     return model

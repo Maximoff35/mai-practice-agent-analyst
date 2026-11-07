@@ -1,0 +1,37 @@
+[
+  {
+    "id": "application_buggy",
+    "title": "Заявка с ошибочной отменой",
+    "requirements": "Заявка имеет статус Created, Approved, Cancelled или Executed и признаки approved и cancelled. Изначально статус Created, оба признака false. Approve разрешён только в Created и задаёт Approved и approved=true. Cancel разрешён в Created или Approved и задаёт Cancelled и cancelled=true, не меняя approved. Execute разрешён при approved=true независимо от статуса и задаёт Executed. Запрещено состояние status=Executed при cancelled=true. Проверь именно эти правила без исправлений.",
+    "expected_status": "PROPERTY_VIOLATED",
+    "expected_semantics": "Статус и два булевых признака; три перехода. Cancel сохраняет approved, Execute проверяет только approved. Запрет исполненной отменённой заявки; путь согласование → отмена → исполнение. Имена могут отличаться."
+  },
+  {
+    "id": "application_fixed",
+    "title": "Заявка с исправленной отменой",
+    "requirements": "Заявка имеет статус Created, Approved, Cancelled или Executed и признаки approved и cancelled. Изначально статус Created, оба признака false. Approve разрешён только в Created и задаёт Approved и approved=true. Cancel разрешён в Created или Approved и задаёт Cancelled, cancelled=true и approved=false. Execute разрешён при approved=true независимо от статуса и задаёт Executed. Запрещено состояние status=Executed при cancelled=true. Проверь именно эти правила без исправлений.",
+    "expected_status": "PROPERTY_HOLDS",
+    "expected_semantics": "Та же модель заявки, но Cancel сбрасывает approved. После отмены Execute недоступен; запрет исполненной отменённой заявки выполняется."
+  },
+  {
+    "id": "ambiguous",
+    "title": "Неполные правила заявки",
+    "requirements": "Заявку можно согласовать, отменить и исполнить. Проверь, что всё безопасно.",
+    "expected_status": null,
+    "expected_semantics": "Недостаточно данных для однозначной модели: не заданы начальное состояние, допустимость исполнения после отмены и точное свойство безопасности. Нужны уточнения; любой результат TLC для придуманной интерпретации не подтверждает исходные требования."
+  },
+  {
+    "id": "short_word",
+    "title": "Короткий неоднозначный пример Word",
+    "requirements": "Заявка после согласования может быть исполнена. Пользователь может отменить заявку до исполнения.",
+    "expected_status": null,
+    "expected_semantics": "Предположенные initial, guards/effects и свойства видны; есть вопросы. Не требуется выдумывать ошибочный Execute."
+  },
+  {
+    "id": "missing_initial",
+    "title": "Правила без initial",
+    "requirements": "Булева переменная ready. Prepare разрешён при ready=false и задаёт ready=true. Проверь достижимость ready=true. Начальное значение не задано.",
+    "expected_status": null,
+    "expected_semantics": "Начальное значение явно названо предположением и задан вопрос; проверяется только достижимость."
+  }
+]
