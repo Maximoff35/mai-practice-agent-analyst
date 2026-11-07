@@ -21,6 +21,7 @@ from analyst import (
     UnsupportedRequirementsError,
 )
 from analyst.config import get_setting
+from model_checker import case_result
 
 
 app = FastAPI(title="MAI Analyst Agent")
@@ -69,3 +70,14 @@ def analyze(request: AnalyzeRequest, agent: Annotated[AnalystAgent, Depends(get_
         raise HTTPException(status_code=422, detail=str(error)) from error
     except (OpenRouterError, MAIError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
+
+
+@app.post("/api/v2/analyze")
+def analyze_case(request: AnalyzeRequest, agent: Annotated[AnalystAgent, Depends(get_agent)]) -> dict:
+    result = analyze(request, agent)
+    data = result.model_dump(mode="json")
+    data["verification_result"] = case_result(result.verification_result, result.behavioral_model)
+    data["counterexample"] = data["verification_result"]["counterexample"]
+    for prop in data["behavioral_model"]["properties"]:
+        prop["id"] = prop.pop("name")
+    return data

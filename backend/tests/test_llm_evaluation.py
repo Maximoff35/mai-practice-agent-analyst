@@ -12,9 +12,9 @@ from model_checker import TLCConfig, VerificationResult, validate_model, verify
 
 
 EVALUATION = Path(__file__).parents[1] / "evaluation"
-SCENARIOS = {row["id"]: row for filename in ["scenarios.json", "deadlock-scenarios.json"]
+SCENARIOS = {row["id"]: row for filename in ["scenarios.json", "deadlock-scenarios.json", "interpretation-scenarios.json"]
              for row in json.loads((EVALUATION / filename).read_text(encoding="utf-8"))}
-RUNS = [run for filename in ["recorded-qwen36.json", "recorded-deadlock-qwen36.json"]
+RUNS = [run for filename in ["recorded-qwen36.json", "recorded-deadlock-qwen36.json", "recorded-interpretation-qwen36.json"]
         for run in json.loads((EVALUATION / filename).read_text(encoding="utf-8"))["runs"]]
 
 
@@ -43,6 +43,12 @@ def test_replay_recorded_mai_responses(run):
     )
     if run["id"].startswith("mutex"):
         assert {variable.name for variable in result.behavioral_model.variables} == {"inA", "inB"}
+    if "interpretation" in run["behavioral_model"]:
+        interpretation = result.behavioral_model.interpretation
+        assert set(interpretation.property_rationale) == {prop.name for prop in result.behavioral_model.properties}
+        if run["id"] in {"ambiguous", "short_word", "missing_initial"}:
+            assert interpretation.assumptions
+            assert interpretation.questions
 
 
 @pytest.mark.integration

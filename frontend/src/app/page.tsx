@@ -5,12 +5,17 @@ import RequirementsInput from "@/components/RequirementsInput";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { ModelCardSkeleton } from "@/components/ModelCard";
 import AnalysisTabs from "@/components/AnalysisTabs";
+import InterpretationCard from "@/components/InterpretationCard";
 import { analyzeRequirements } from "@/lib/api";
 import type { AnalysisResult } from "@/lib/types";
 
 const EXAMPLE_TEXT =
-  "Заявка после согласования может быть исполнена. " +
-  "Пользователь может отменить заявку до исполнения.";
+  "Заявка имеет статус Created, Approved, Cancelled или Executed и признаки approved и cancelled. " +
+  "Изначально статус Created, оба признака false. " +
+  "Approve разрешён только в Created и задаёт Approved и approved=true. " +
+  "Cancel разрешён в Created или Approved и задаёт Cancelled и cancelled=true, не меняя approved. " +
+  "Execute разрешён при approved=true независимо от статуса и задаёт Executed. " +
+  "Запрещено состояние status=Executed при cancelled=true. Проверь именно эти правила без исправлений.";
 
 type FormState = "idle" | "loading" | "error" | "success";
 
@@ -222,6 +227,7 @@ export default function Home() {
               {result.requirements}
             </p>
           </section>}
+          <InterpretationCard model={result.behavioral_model} />
           <AnalysisTabs result={result} />
         </>
       )}

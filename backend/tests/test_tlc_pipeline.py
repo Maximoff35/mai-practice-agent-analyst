@@ -93,15 +93,17 @@ def test_runner_writes_files_and_runs_subprocess(fixed_model, tmp_path, monkeypa
         returncode = 0
 
         def __init__(self, command, **kwargs):
-            assert command[:4] == ["java-test", "-cp", str(jar), "tlc2.TLC"]
+            assert command[:3] == ["java-test", "-cp", str(jar)]
+            self.sany = command[3] == "tla2sany.SANY"
+            assert self.sany or command[3] == "tlc2.TLC"
             assert command[-1] == "Model.tla"
             directory = Path(kwargs["cwd"])
             assert "Step_Cancel" in (directory / "Model.tla").read_text(encoding="utf-8")
             assert "INVARIANT Property_NoExecutedAfterCancel" in (directory / "Model.cfg").read_text(encoding="utf-8")
 
         def communicate(self, timeout=None):
-            assert timeout == 5
-            return SUCCESS_OUTPUT, ""
+            assert 0 < timeout <= 5
+            return ("Semantic processing of module Model" if self.sany else SUCCESS_OUTPUT), ""
 
     monkeypatch.setattr("model_checker.runner.subprocess.Popen", FakeProcess)
     result = verify(fixed_model, TLCConfig(java_executable="java-test", tla2tools_jar=jar, timeout_seconds=5, temp_root=tmp_path))

@@ -31,7 +31,7 @@ def test_buggy_model_generation_preserves_approved(buggy_model):
     assert "v_cancelled' = TRUE" in cancel
     assert "UNCHANGED <<v_approved>>" in cancel
     assert "v_approved'" not in cancel
-    assert 'Property_NoExecutedAfterCancel == ~(((v_status = "Executed") /\\ (v_cancelled = TRUE)))' in result.tla
+    assert 'Property_NoExecutedAfterCancel == (~(((v_status = "Executed") /\\ (v_cancelled = TRUE)))) /\\ TypeOK' in result.tla
     assert "INVARIANT Property_NoExecutedAfterCancel" in result.cfg
     assert "SPECIFICATION Spec" in result.cfg
 
@@ -262,7 +262,7 @@ def test_invariant_and_negation(buggy_model):
         {"name": "Safe", "type": "invariant", "expression": {"not": {"var": "cancelled"}}}
     ]
     result = generate_tla(buggy_model)
-    assert "Property_Safe == ~(v_cancelled)" in result.tla
+    assert "Property_Safe == (~(v_cancelled)) /\\ TypeOK" in result.tla
     assert "INVARIANT Property_Safe" in result.cfg
 
 
