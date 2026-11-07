@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -23,8 +24,9 @@ from .validator import ModelValidationError, validate_model
 class TLCConfig(BaseModel):
     java_executable: str = "java"
     tla2tools_jar: Path | None = None
-    timeout_seconds: float = Field(default=60.0, gt=0)
+    timeout_seconds: float = Field(default=60.0, gt=0, allow_inf_nan=False)
     temp_root: Path | None = None
+    max_states: int | None = Field(default=None, gt=0, le=2_147_483_647, strict=True)
 
     @classmethod
     def from_env(cls) -> "TLCConfig":
@@ -33,6 +35,7 @@ class TLCConfig(BaseModel):
             tla2tools_jar=os.getenv("MODEL_CHECKER_TLA2TOOLS_JAR") or None,
             timeout_seconds=float(os.getenv("MODEL_CHECKER_TIMEOUT_SECONDS", "60")),
             temp_root=os.getenv("MODEL_CHECKER_TEMP_DIR") or None,
+            max_states=int(os.environ["MODEL_CHECKER_MAX_STATES"]) if os.getenv("MODEL_CHECKER_MAX_STATES") else None,
         )
 
 
@@ -44,15 +47,42 @@ def _resolve_java(executable: str) -> str | None:
     return str(path.resolve()) if path.is_file() else None
 
 
+def _run_process(command: list[str], directory: Path, timeout: float) -> tuple[str, str, int, bool]:
+    process = subprocess.Popen(
+        command, cwd=directory, stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        encoding="utf-8", errors="replace",
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+        return stdout, stderr, process.returncode, False
+    except subprocess.TimeoutExpired:
+        process.kill()
+        stdout, stderr = process.communicate()
+        return stdout, stderr, process.returncode, True
+    except BaseException:
+        process.kill()
+        process.communicate()
+        raise
+
+
+_SANY_ERROR = re.compile(
+    r"\*{3}\s*(?:Errors|Abort)|(?:Semantic|Syntax|Lexical|Parse|Parsing|Level|Fatal|Initialization)\s+errors?\b",
+    re.IGNORECASE,
+)
+
+
 def _verify_single(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = None) -> VerificationResult:
     """Validate, generate, run TLC, and return a structured result."""
+    config = config or TLCConfig.from_env()
+    deadline = time.monotonic() + config.timeout_seconds
     try:
         parsed_model = validate_model(model)
-        files = generate_tla(parsed_model)
+        files = generate_tla(parsed_model, max_states=config.max_states)
     except (ValidationError, ModelValidationError, ValueError) as error:
         return VerificationResult(status=VerificationStatus.MODEL_INVALID, message=str(error))
 
-    config = config or TLCConfig.from_env()
     java = _resolve_java(config.java_executable)
     if not java:
         return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="Java executable not found")
@@ -65,27 +95,30 @@ def _verify_single(model: BehavioralModel | dict[str, Any], config: TLCConfig | 
             directory = Path(temporary)
             (directory / "Model.tla").write_text(files.tla, encoding="utf-8")
             (directory / "Model.cfg").write_text(files.cfg, encoding="utf-8")
-            command = [java, "-cp", jar, "tlc2.TLC", "-workers", "1", "-config", "Model.cfg", "Model.tla"]
-            process = subprocess.Popen(
-                command,
-                cwd=directory,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return VerificationResult(status=VerificationStatus.TIMEOUT, message="Бюджет исчерпан до SANY")
+            sany_out, sany_err, sany_code, timed_out = _run_process(
+                [java, "-cp", jar, "tla2sany.SANY", "Model.tla"], directory, remaining,
             )
-            try:
-                stdout, stderr = process.communicate(timeout=config.timeout_seconds)
-                timed_out = False
-            except subprocess.TimeoutExpired:
-                process.kill()
-                stdout, stderr = process.communicate()
-                timed_out = True
+            sany_common = {"stdout": sany_out, "stderr": sany_err, "exit_code": sany_code}
+            if timed_out:
+                return VerificationResult(status=VerificationStatus.TIMEOUT, message="SANY: лимит времени", **sany_common)
+            sany_output = sany_out + "\n" + sany_err
+            # This installed SANY CLI may exit 0 on invalid input. Require its
+            # completed semantic phase and inspect diagnostics as well as exit.
+            if _SANY_ERROR.search(sany_output):
+                return VerificationResult(status=VerificationStatus.MODEL_INVALID, message="SANY отклонил TLA+", **sany_common)
+            if sany_code != 0 or "Semantic processing of module Model" not in sany_output:
+                return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="SANY не подтвердил разбор модуля", **sany_common)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return VerificationResult(status=VerificationStatus.TIMEOUT, message="Общий бюджет исчерпан после SANY", **sany_common)
+            command = [java, "-cp", jar, "tlc2.TLC", "-workers", "1", "-config", "Model.cfg", "Model.tla"]
+            stdout, stderr, exit_code, timed_out = _run_process(command, directory, remaining)
     except OSError as error:
         return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message=str(error))
-    return parse_tlc_output(stdout, stderr, process.returncode, model=parsed_model, timed_out=timed_out)
+    return parse_tlc_output(stdout, stderr, exit_code, model=parsed_model, timed_out=timed_out)
 
 
 def verify(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = None) -> VerificationResult:

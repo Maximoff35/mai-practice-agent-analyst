@@ -138,7 +138,7 @@ def parse_tlc_output(
     common = {"stdout": stdout, "stderr": stderr, "exit_code": exit_code, "statistics": statistics}
     if timed_out:
         return VerificationResult(status=VerificationStatus.TIMEOUT, message="TLC timed out", **common)
-    if _STATE_LIMIT.search(output):
+    if _STATE_LIMIT.search(output) or re.search(r"Error:\s+Invariant\s+MC_StateBudget\s+is violated", output):
         return VerificationResult(status=VerificationStatus.STATE_LIMIT_REACHED, message="TLC state limit reached", **common)
     violation = _VIOLATION.search(output)
     if violation:

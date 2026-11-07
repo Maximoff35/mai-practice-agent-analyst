@@ -61,9 +61,11 @@ def _definition(name: str, clauses: list[str]) -> str:
     return f"{name} ==\n" + "\n".join(f"  /\\ {clause}" for clause in clauses)
 
 
-def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Model") -> TlaFiles:
+def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Model", *, max_states: int | None = None) -> TlaFiles:
     """Return .tla and .cfg contents for a fully validated finite model."""
     model = validate_model(model)
+    if max_states is not None and (type(max_states) is not int or not 1 <= max_states <= 2_147_483_647):
+        raise ValueError("max_states должен быть целым числом от 1 до 2147483647")
     if len(model.properties) > 1 and any(prop.type in {"reachable", "deadlock_free"} for prop in model.properties):
         raise ValueError("Модель с reachable/deadlock_free проверяйте через verify; отдельный модуль TLC требует одного свойства")
     if not module_name.isascii() or not module_name or not module_name[0].isalpha() or not all(
@@ -75,7 +77,7 @@ def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Mo
     tuple_expr = "<<" + ", ".join(f"v_{name}" for name in names) + ">>"
     lines = [
         f"---- MODULE {module_name} ----",
-        "EXTENDS Integers",
+        "EXTENDS Integers, TLC" if max_states is not None else "EXTENDS Integers",
         "",
         "VARIABLES " + ", ".join(f"v_{name}" for name in names),
         f"vars == {tuple_expr}",
@@ -129,4 +131,9 @@ def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Mo
 
     cfg_lines = ["SPECIFICATION Spec", "INVARIANT TypeOK"]
     cfg_lines.extend(f"INVARIANT Property_{prop.name}" for prop in model.properties)
+    if max_states is not None:
+        # A separate diagnostic invariant stops real TLC; it is never a user
+        # property or a constraint that could silently truncate the graph.
+        lines[-2:-2] = [f'MC_StateBudget == (TLCGet("distinct") < {max_states}) /\\ TypeOK', ""]
+        cfg_lines.append("INVARIANT MC_StateBudget")
     return TlaFiles("\n".join(lines), "\n".join(cfg_lines) + "\n")
