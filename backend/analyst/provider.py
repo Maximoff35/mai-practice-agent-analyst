@@ -70,7 +70,7 @@ class FakeLLMProvider:
 
     def build_model(self, requirements: str) -> BehavioralModel:
         text = requirements.casefold()
-        if "заявк" not in text or "отмен" not in text:
+        if "заявк" not in text or not ("отмен" in text or "cancel" in text):
             raise UnsupportedRequirementsError(
                 "FakeLLMProvider поддерживает только демонстрационный сценарий заявки и отмены."
             )

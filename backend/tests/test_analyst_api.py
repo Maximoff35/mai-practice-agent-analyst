@@ -19,6 +19,16 @@ def test_fake_provider_matches_acceptance_fixtures(buggy_model, fixed_model):
     assert provider.build_model(FIXED_REQUIREMENTS).model_dump(mode="json") == fixed_model
 
 
+def test_fake_provider_accepts_full_acceptance_texts(buggy_model, fixed_model):
+    import json
+    from pathlib import Path
+
+    scenarios = json.loads((Path(__file__).parents[1] / "evaluation/scenarios.json").read_text(encoding="utf-8"))
+    provider = FakeLLMProvider()
+    assert provider.build_model(scenarios[0]["requirements"]).model_dump(mode="json") == buggy_model
+    assert provider.build_model(scenarios[1]["requirements"]).model_dump(mode="json") == fixed_model
+
+
 def test_agent_calls_checker_once_and_returns_structured_result():
     calls = []
 
