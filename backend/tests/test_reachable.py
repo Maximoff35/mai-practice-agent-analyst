@@ -125,7 +125,7 @@ def test_api_preserves_witness_and_references(fixed_model, configured_tlc):
 def test_reachable_generation_and_invalid_expression(fixed_model, monkeypatch):
     fixed_model["properties"] = [goal(status_is("Executed"))]
     files = generate_tla(fixed_model)
-    assert 'Property_Goal == ~((v_status = "Executed"))' in files.tla
+    assert 'Property_Goal == (~((v_status = "Executed"))) /\\ TypeOK' in files.tla
     assert "INVARIANT Property_Goal" in files.cfg
     mixed = deepcopy(fixed_model)
     mixed["properties"].append(goal(False, "Another"))

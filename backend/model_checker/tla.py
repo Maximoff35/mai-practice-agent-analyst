@@ -120,9 +120,10 @@ def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Mo
             expression = compile_expression(prop.expression)
         if prop.type in {"forbidden_state", "reachable"}:
             expression = f"~({expression})"
-        if prop.type == "reachable":
-            # Keep constant targets state-level so TLC emits the actual initial state.
-            expression = f"{expression} /\\ TypeOK"
+        if prop.type != "deadlock_free":
+            # TLC must evaluate even constant predicates at state level, so an
+            # initial violation produces a trace rather than a config error.
+            expression = f"({expression}) /\\ TypeOK"
         lines.extend(["", f"Property_{prop.name} == {expression}"])
     lines.extend(["", "====", ""])
 
