@@ -94,7 +94,7 @@ def verify(model: BehavioralModel | dict[str, Any], config: TLCConfig | None = N
         parsed_model = validate_model(model)
     except (ValidationError, ModelValidationError, ValueError) as error:
         return VerificationResult(status=VerificationStatus.MODEL_INVALID, message=str(error))
-    if not any(prop.type in {"reachable", "deadlock_free"} for prop in parsed_model.properties):
+    if len(parsed_model.properties) == 1 and parsed_model.properties[0].type not in {"reachable", "deadlock_free"}:
         return _verify_single(parsed_model, config)
 
     config = config or TLCConfig.from_env()

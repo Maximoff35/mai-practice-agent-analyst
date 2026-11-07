@@ -72,6 +72,17 @@ class Property(StrictModel):
         default=None, exclude_if=lambda value: value is None
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def accept_case_identifier(cls, value: Any) -> Any:
+        if isinstance(value, dict) and "id" in value:
+            value = value.copy()
+            identifier = value.pop("id")
+            if "name" in value and value["name"] != identifier:
+                raise ValueError("Property.id и Property.name должны совпадать")
+            value["name"] = identifier
+        return value
+
     @model_validator(mode="after")
     def require_type_specific_fields(self) -> "Property":
         if self.type == "deadlock_free":

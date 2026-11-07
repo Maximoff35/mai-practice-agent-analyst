@@ -11,6 +11,7 @@ from .tla import TlaFiles, compile_expression, generate_tla
 from .validator import ModelValidationError, validate_model
 from .result import PropertyResult, TraceState, TLCStatistics, VerificationResult, VerificationStatus
 from .runner import TLCConfig, verify
+from .compat import case_result, check_behavior
 
 __all__ = [
     "BehavioralModel",
@@ -30,4 +31,6 @@ __all__ = [
     "validate_model",
     "validate_source_references",
     "verify",
+    "case_result",
+    "check_behavior",
 ]
