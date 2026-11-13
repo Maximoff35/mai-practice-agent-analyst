@@ -20,10 +20,19 @@ from analyst import (
     OpenRouterProvider,
     SourceReferenceValidationError,
     UnsupportedRequirementsError,
+    JavaGenerator,
 )
 from analyst.config import get_setting
 from model_checker import case_result
-from orchestration import CaseAcceptance, CaseAnalysis, CaseNotFoundError, CasePipeline, PipelineError, PipelineReport
+from orchestration import (
+    CaseAcceptance,
+    CaseAnalysis,
+    CaseNotFoundError,
+    CasePipeline,
+    PipelineError,
+    PipelineReport,
+    UnavailableGenerator,
+)
 
 
 app = FastAPI(title="MAI Analyst Agent")
@@ -59,7 +68,13 @@ def get_agent() -> AnalystAgent:
 
 @lru_cache(maxsize=1)
 def get_pipeline() -> CasePipeline:
-    return CasePipeline(get_agent())
+    if get_setting("MAI_API_KEY") and (
+        get_setting("MAI_GENERATOR_MODEL") or get_setting("MAI_MODEL")
+    ):
+        generator = JavaGenerator.from_env()
+    else:
+        generator = UnavailableGenerator()
+    return CasePipeline(get_agent(), generator=generator)
 
 
 @app.get("/health")

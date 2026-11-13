@@ -35,6 +35,7 @@ class JavaArtifact(BaseModel):
     files: list[JavaSourceFile] = Field(min_length=1, max_length=32)
     main_class: str = Field(min_length=1, max_length=240, pattern=r"^[A-Za-z_$][A-Za-z0-9_$.]*$")
     model_fingerprint: str | None = Field(default=None, min_length=1, max_length=128)
+    instruction: str | None = Field(default=None, max_length=4_000)
 
     @field_validator("files")
     @classmethod

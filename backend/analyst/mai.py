@@ -109,6 +109,10 @@ class MAIProvider:
             self.response_models.append(actual_model)
         return content.strip()
 
+    def complete(self, messages: list[dict[str, str]], *, structured: bool = False) -> str:
+        """Send a provider request for an additional role such as Java generation."""
+        return self._request(messages, structured=structured)
+
     def build_model(self, requirements: str) -> BehavioralModel:
         content = self._request(
             [{"role": "system", "content": MODEL_INSTRUCTIONS}, {"role": "user", "content": requirements}],

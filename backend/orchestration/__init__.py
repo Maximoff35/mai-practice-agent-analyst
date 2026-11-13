@@ -7,6 +7,7 @@ from .pipeline import (
     CaseState,
     PipelineError,
     Reviewer,
+    UnavailableGenerator,
 )
 from .schemas import (
     CaseAcceptance,
@@ -28,6 +29,7 @@ __all__ = [
     "PipelineError",
     "PipelineReport",
     "Reviewer",
+    "UnavailableGenerator",
     "ReviewFinding",
     "ReviewSeverity",
 ]
