@@ -12,7 +12,7 @@ dependencies = ["pydantic>=2,<3", "fastapi>=0.115,<1", "uvicorn>=0.30,<1", "http
 test = ["pytest>=8", "httpx>=0.27"]
 
 [tool.setuptools.packages.find]
-include = ["api*", "analyst*", "model_checker*"]
+include = ["api*", "analyst*", "model_checker*", "java_runner*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
