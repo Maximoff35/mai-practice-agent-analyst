@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from pathlib import PurePosixPath
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class JavaSourceFile(BaseModel):
@@ -35,9 +35,17 @@ class JavaArtifact(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     files: list[JavaSourceFile] = Field(min_length=1, max_length=32)
-    main_class: str = Field(min_length=1, max_length=240, pattern=r"^[A-Za-z_$][A-Za-z0-9_$.]*$")
+    main_class: str = Field(min_length=1, max_length=240, pattern=r"^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$")
     model_fingerprint: str | None = Field(default=None, min_length=1, max_length=128)
     instruction: str | None = Field(default=None, max_length=4_000)
+    generator_model: str | None = Field(default=None, max_length=160)
+    requested_generator_model: str | None = Field(default=None, max_length=160)
+
+    @model_validator(mode="after")
+    def main_source_exists(self):
+        if self.main_class.replace(".", "/") + ".java" not in {source.path for source in self.files}:
+            raise ValueError("Исходник main_class отсутствует в артефакте")
+        return self
 
     @field_validator("files")
     @classmethod

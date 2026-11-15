@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from threading import Lock
 
 from java_runner import JavaArtifact
 from model_checker import BehavioralModel
@@ -31,6 +32,13 @@ FIRE Event -> APPLIED и новое STATE либо REJECTED. Выводи все
 Сделай автономный исходник без package, Maven, Gradle, сети, файлов, subprocess,
 reflection и внешних зависимостей. Не добавляй переходы, переменные или правила,
 которых нет в модели. Пути файлов — только относительные .java.
+Enum в STATE выводи как JSON-строку с кавычками/экранированием (это сохраняет ;, = и пробелы).
+Boolean печатай true/false, integer — десятичным числом. Никаких иных строк, логов или приглашений.
+После SNAPSHOT должна быть ровно одна строка STATE со всеми переменными без повторов.
+При REJECTED состояние не меняется; после EOF stdin программа завершается.
+Неизвестное событие всегда REJECTED. Инварианты и terminal_states не добавляют новых событий:
+машина реализует transitions, а не исправляет нарушения properties.
+Возвращай валидный JSON: экранируй переносы строк и кавычки в content.
 """
 
 
@@ -42,6 +50,7 @@ class JavaGenerator:
     def __init__(self, provider: MAIProvider) -> None:
         self.provider = provider
         self.model = provider.model
+        self.lock = Lock()
 
     @classmethod
     def from_env(cls, *, client=None) -> "JavaGenerator":
@@ -60,7 +69,7 @@ class JavaGenerator:
             )
         )
 
-    def generate(
+    def _generate(
         self,
         requirements: str,
         model: BehavioralModel,
@@ -72,6 +81,7 @@ class JavaGenerator:
             "behavioral_model": model.model_dump(mode="json"),
         }
         try:
+            self.provider.response_models.clear()
             content = self.provider.complete(
                 [
                     {"role": "system", "content": JAVA_GENERATOR_INSTRUCTIONS},
@@ -79,6 +89,8 @@ class JavaGenerator:
                 ],
                 structured=True,
             )
+            if len(content.encode("utf-8")) > 2_000_000:
+                raise JavaGenerationError("Ответ Java-генератора слишком большой")
             artifact = JavaArtifact.model_validate(json.loads(content))
         except MAIError:
             raise
@@ -86,4 +98,12 @@ class JavaGenerator:
             raise JavaGenerationError("API МАИ вернул невалидный Java-артефакт") from error
         if artifact.model_fingerprint != model_fingerprint:
             raise JavaGenerationError("Java-артефакт относится к другой версии BehavioralModel")
+        if not artifact.instruction or not artifact.instruction.strip():
+            raise JavaGenerationError("Генератор не вернул инструкцию модуля")
+        artifact.generator_model = self.provider.response_models[-1] if self.provider.response_models else None
+        artifact.requested_generator_model = self.provider.model
         return artifact
+
+    def generate(self, requirements, model, model_fingerprint):
+        with self.lock:
+            return self._generate(requirements, model, model_fingerprint)
