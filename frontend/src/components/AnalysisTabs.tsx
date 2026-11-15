@@ -4,17 +4,20 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import ModelCard from "@/components/ModelCard";
 import PropertyCard from "@/components/PropertyCard";
 import VerificationResultCard from "@/components/VerificationResultCard";
-import type { AnalysisResult } from "@/lib/types";
+import JavaProduct from "@/components/JavaProduct";
+import type { AnalysisResult, CaseAnalysis } from "@/lib/types";
 
-type TabId = "model" | "property" | "result";
+type TabId = "model" | "property" | "result" | "java" | "code";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "model", label: "Построенная модель" },
   { id: "property", label: "Проверяемое свойство" },
   { id: "result", label: "Результат проверки" },
+  { id: "java", label: "Проверки Java" },
+  { id: "code", label: "Java-код" },
 ];
 
-export default function AnalysisTabs({ result }: { result: AnalysisResult }) {
+export default function AnalysisTabs({ result, savedCase = null }: { result: AnalysisResult; savedCase?: CaseAnalysis | null }) {
   const [activeTab, setActiveTab] = useState<TabId>("model");
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
 
@@ -65,9 +68,12 @@ export default function AnalysisTabs({ result }: { result: AnalysisResult }) {
         })}
       </div>
 
+      {savedCase?.mode === "recorded" && <p role="status" className="text-sm text-amber-400">РЕЖИМ ЗАПИСИ: ответы LLM сохранены ранее. TLC и проверки Java выполняются заново; новых запросов МАИ нет.</p>}
+
       <div
+        hidden={activeTab === "java" || activeTab === "code"}
         role="tabpanel"
-        id={`analysis-panel-${activeTab}`}
+        id={activeTab === "java" || activeTab === "code" ? undefined : `analysis-panel-${activeTab}`}
         aria-labelledby={`analysis-tab-${activeTab}`}
       >
         {activeTab === "model" && (
@@ -82,6 +88,11 @@ export default function AnalysisTabs({ result }: { result: AnalysisResult }) {
             explanation={result.explanation}
           />
         )}
+      </div>
+      <div hidden={activeTab !== "java" && activeTab !== "code"}
+        role="tabpanel" id={`analysis-panel-${activeTab === "code" ? "code" : "java"}`}
+        aria-labelledby={`analysis-tab-${activeTab === "code" ? "code" : "java"}`}>
+        <JavaProduct key={savedCase?.case_id ?? "legacy"} saved={savedCase} view={activeTab === "code" ? "code" : "checks"} />
       </div>
     </div>
   );

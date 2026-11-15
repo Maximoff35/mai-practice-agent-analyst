@@ -90,6 +90,7 @@ class CasePipeline:
     ttl_seconds: float = 3600
     max_cases: int = 64
     store_lock: object = field(default_factory=Lock, repr=False)
+    source_mode: str = "live"
 
     def _prune(self):
         now = time.monotonic()
@@ -111,7 +112,7 @@ class CasePipeline:
                 raise PipelineError("Хранилище кейсов заполнено")
             self.cases[case_id] = CaseState(case_id, requirements, analysis.behavioral_model,
                                             analysis, model_fingerprint)
-        return CaseAnalysis(case_id=case_id, model_fingerprint=model_fingerprint, analysis=analysis.model_copy(deep=True))
+        return CaseAnalysis(case_id=case_id, model_fingerprint=model_fingerprint, analysis=analysis.model_copy(deep=True), mode=self.source_mode)
 
     def _case(self, case_id: str) -> CaseState:
         with self.store_lock:
@@ -138,6 +139,7 @@ class CasePipeline:
             model_fingerprint=case.model_fingerprint,
             analysis=case.analysis.model_copy(deep=True),
             accepted=True,
+            mode=self.source_mode,
         )
 
     def generate(self, case_id: str) -> PipelineReport:
@@ -217,6 +219,7 @@ class CasePipeline:
             review=case.review.model_copy(deep=True) if case.review else None,
             compile_and_check=case.check.model_copy(deep=True) if case.check else None,
             message=message,
+            mode=self.source_mode,
         )
 
     def report(self, case_id: str) -> PipelineReport:
