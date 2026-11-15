@@ -20,10 +20,12 @@ class JavaSourceFile(BaseModel):
         path = PurePosixPath(value)
         if (
             path.is_absolute()
+            or value != path.as_posix()
             or "\\" in value
             or ":" in value
-            or any(part in {"", ".", ".."} for part in path.parts)
+            or any(part in {"", ".", ".."} or not part or not all(c.isascii() and (c.isalnum() or c in "_$.-") for c in part) for part in value.split("/"))
             or path.suffix != ".java"
+            or any(part.split(".", 1)[0].upper() in {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))} for part in path.parts)
         ):
             raise ValueError("Java source path must be a relative .java path without traversal")
         return value
@@ -41,8 +43,10 @@ class JavaArtifact(BaseModel):
     @classmethod
     def validate_unique_paths(cls, value: list[JavaSourceFile]) -> list[JavaSourceFile]:
         paths = [item.path for item in value]
-        if len(paths) != len(set(paths)):
+        if len(paths) != len(set(path.casefold() for path in paths)):
             raise ValueError("Java artifact contains duplicate source paths")
+        if sum(len(item.content.encode("utf-8")) for item in value) > 2_000_000:
+            raise ValueError("Суммарный размер исходников превышает 2 MB")
         return value
 
 
@@ -52,6 +56,7 @@ class JavaCheckStatus(StrEnum):
     BEHAVIOR_VIOLATED = "BEHAVIOR_VIOLATED"
     TIMEOUT = "TIMEOUT"
     OUTPUT_LIMIT_REACHED = "OUTPUT_LIMIT_REACHED"
+    CHECK_LIMIT_REACHED = "CHECK_LIMIT_REACHED"
     ENVIRONMENT_UNAVAILABLE = "ENVIRONMENT_UNAVAILABLE"
     INVALID_ARTIFACT = "INVALID_ARTIFACT"
     RUNNER_ERROR = "RUNNER_ERROR"
@@ -63,6 +68,9 @@ class JavaCheckResult(BaseModel):
     status: JavaCheckStatus
     message: str | None = None
     model_fingerprint: str | None = None
+    artifact_fingerprint: str | None = None
+    compilation: str = "NOT_RUN"
+    coverage: str = "NOT_COMPLETED"
     checks_run: int = 0
     failed_check: str | None = None
     stdout: str = ""

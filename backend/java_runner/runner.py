@@ -15,12 +15,15 @@ poison later checks.
 
 from __future__ import annotations
 
-import os
+import copy
+import math
+import json
 import re
 import shutil
-import subprocess
 import tempfile
+import time
 from collections import deque
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -28,20 +31,11 @@ from model_checker.schemas import BehavioralModel, BooleanVariable, EnumVariable
 from model_checker.validator import validate_model
 
 from .schemas import JavaArtifact, JavaCheckResult, JavaCheckStatus
+from .sandbox import DockerSandbox
+from .identity import fingerprint_artifact
 
 
 _STATE = re.compile(r"^STATE(?:\s+|$)(.*)$")
-_PAIR = re.compile(r"^([^=;]+)=(.*)$")
-
-
-def _text(value: str | bytes | None) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, bytes):
-        return value.decode("utf-8", errors="replace")
-    return value
-
-
 class JavaRunnerConfig:
     def __init__(
         self,
@@ -52,8 +46,11 @@ class JavaRunnerConfig:
         max_checks: int = 1_000,
         max_output_bytes: int = 256_000,
         temp_root: Path | None = None,
+        docker_executable: str = "docker",
+        docker_image: str = "eclipse-temurin:17-jdk",
+        total_timeout_seconds: float = 120.0,
     ) -> None:
-        if timeout_seconds <= 0 or max_checks <= 0 or max_output_bytes <= 0:
+        if not math.isfinite(timeout_seconds) or timeout_seconds <= 0 or max_checks <= 0 or max_output_bytes <= 0 or not math.isfinite(total_timeout_seconds) or total_timeout_seconds <= 0:
             raise ValueError("Java runner limits must be positive")
         self.javac_executable = javac_executable
         self.java_executable = java_executable
@@ -61,6 +58,11 @@ class JavaRunnerConfig:
         self.max_checks = max_checks
         self.max_output_bytes = max_output_bytes
         self.temp_root = temp_root
+        self.docker_executable, self.docker_image = docker_executable, docker_image
+        self.total_timeout_seconds = total_timeout_seconds
+        self.sandbox: DockerSandbox | None = None
+        self.deadline = 0.0
+        self.compiled = False
 
 
 def _resolve(executable: str) -> str | None:
@@ -69,11 +71,6 @@ def _resolve(executable: str) -> str | None:
         return found
     path = Path(executable)
     return str(path.resolve()) if path.is_file() else None
-
-
-def _safe_environment() -> dict[str, str]:
-    allowed = {"PATH", "SystemRoot", "WINDIR", "TEMP", "TMP", "JAVA_HOME"}
-    return {key: value for key, value in os.environ.items() if key in allowed}
 
 
 def _validate_source_policy(artifact: JavaArtifact) -> str | None:
@@ -132,11 +129,22 @@ def _parse_state(line: str, model: BehavioralModel) -> dict[str, Any] | None:
     if not match:
         return None
     values: dict[str, Any] = {}
-    for raw_pair in match.group(1).split(";"):
-        pair = _PAIR.fullmatch(raw_pair.strip())
-        if not pair:
+    remaining = match.group(1)
+    while remaining:
+        key, separator, raw = remaining.partition("=")
+        key = key.strip()
+        if not separator:
             return None
-        key, raw_value = pair.groups()
+        if raw.startswith('"'):
+            try:
+                raw_value, consumed = json.JSONDecoder().raw_decode(raw)
+            except ValueError:
+                return None
+            if not isinstance(raw_value, str) or (raw[consumed:] and not raw[consumed:].startswith(";")):
+                return None
+            remaining = raw[consumed:][1:]
+        else:
+            raw_value, _, remaining = raw.partition(";")
         variable = next((item for item in model.variables if item.name == key), None)
         if variable is None:
             return None
@@ -151,6 +159,8 @@ def _parse_state(line: str, model: BehavioralModel) -> dict[str, Any] | None:
                 return None
         else:
             value = raw_value
+        if key in values or not _within(value, variable):
+            return None
         values[key] = value
     if set(values) != {item.name for item in model.variables}:
         return None
@@ -165,38 +175,15 @@ def _run_script(
     commands: list[str],
     config: JavaRunnerConfig,
 ) -> tuple[JavaCheckStatus | None, list[str], str, int | None]:
-    process = subprocess.Popen(
-        [java, "-cp", str(classes), artifact.main_class],
-        cwd=classes,
-        env=_safe_environment(),
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
+    remaining = config.deadline - time.monotonic()
+    if remaining <= 0:
+        return JavaCheckStatus.TIMEOUT, [], "Общий бюджет Java исчерпан", None
+    code, stdout, stderr, reason = config.sandbox.execute(
+        ["java", "-Xmx128m", "-XX:ActiveProcessorCount=1", "-cp", "/work", artifact.main_class],
+        data="\n".join(commands) + "\n", timeout=min(config.timeout_seconds, remaining),
     )
-    try:
-        stdout, stderr = process.communicate(
-            "\n".join(commands) + "\n",
-            timeout=config.timeout_seconds,
-        )
-    except subprocess.TimeoutExpired as error:
-        process.kill()
-        stdout, stderr = process.communicate()
-        return (
-            JavaCheckStatus.TIMEOUT,
-            _text(stdout).splitlines(),
-            _text(stderr),
-            process.returncode,
-        )
-    output = stdout.encode("utf-8", errors="replace")
-    if len(output) > config.max_output_bytes:
-        process.kill()
-        return JavaCheckStatus.OUTPUT_LIMIT_REACHED, stdout.splitlines(), stderr, process.returncode
-    if process.returncode != 0:
-        return JavaCheckStatus.RUNNER_ERROR, stdout.splitlines(), stderr, process.returncode
-    return None, stdout.splitlines(), stderr, process.returncode
+    status = JavaCheckStatus(reason) if reason else JavaCheckStatus.RUNNER_ERROR if code != 0 else None
+    return status, stdout.splitlines(), stderr, code
 
 
 def _check_path(
@@ -212,7 +199,7 @@ def _check_path(
 ) -> tuple[JavaCheckStatus | None, str | None, str, str, int | None]:
     status, lines, stderr, exit_code = _run_script(
         java, artifact, model, classes,
-        ["SNAPSHOT", *(f"FIRE {item}" for item in path), f"FIRE {transition_name}"],
+        ["SNAPSHOT", *(f"FIRE {item}" for item in path), f"FIRE {transition_name}", "SNAPSHOT"],
         config,
     )
     if status:
@@ -235,23 +222,23 @@ def _check_path(
     command_index = 2 + len(path) * 2
     if command_index >= len(lines):
         return JavaCheckStatus.BEHAVIOR_VIOLATED, transition_name, "\n".join(lines), stderr, exit_code
-    allowed = bool(_evaluate(
-        next(item for item in model.transitions if item.name == transition_name).guard.root,
-        current,
-    ))
+    transition = next((item for item in model.transitions if item.name == transition_name), None)
+    allowed = bool(_evaluate(transition.guard.root, current)) if transition else False
     response = lines[command_index]
     if not allowed and response == "REJECTED":
-        return None, None, "\n".join(lines), stderr, exit_code
+        # Отказ обязан сохранить состояние, включая скрытые ошибочные effects.
+        actual = _parse_state(lines[command_index + 1], model) if command_index + 1 < len(lines) else None
+        if len(lines) == command_index + 2 and actual == current:
+            return None, None, "\n".join(lines), stderr, exit_code
     if allowed and response == "APPLIED":
         actual = _parse_state(lines[command_index + 1], model) if command_index + 1 < len(lines) else None
-        if actual == expected and all(_within(actual[name], variable) for name, variable in (
-            (item.name, item) for item in model.variables
-        )):
+        snapshot = _parse_state(lines[command_index + 2], model) if command_index + 2 < len(lines) else None
+        if len(lines) == command_index + 3 and actual == expected and snapshot == expected:
             return None, None, "\n".join(lines), stderr, exit_code
     return JavaCheckStatus.BEHAVIOR_VIOLATED, transition_name, "\n".join(lines), stderr, exit_code
 
 
-def run_java_module(
+def _run_java_module(
     artifact: JavaArtifact | dict[str, Any],
     model: BehavioralModel | dict[str, Any],
     config: JavaRunnerConfig | None = None,
@@ -271,16 +258,18 @@ def run_java_module(
             model_fingerprint=parsed_artifact.model_fingerprint,
         )
 
-    javac = _resolve(config.javac_executable)
-    java = _resolve(config.java_executable)
-    if not javac or not java:
+    docker = _resolve(config.docker_executable)
+    if not docker:
         return JavaCheckResult(
             status=JavaCheckStatus.ENVIRONMENT_UNAVAILABLE,
-            message="javac and java are required",
+            message="Для проверки необходимы Docker и локальный JDK-образ",
             model_fingerprint=parsed_artifact.model_fingerprint,
         )
+    sandbox = None
+    config.deadline = time.monotonic() + config.total_timeout_seconds
     try:
-        with tempfile.TemporaryDirectory(prefix="java-runner-", dir=config.temp_root) as temporary:
+        with ExitStack() as cleanup:
+            temporary = cleanup.enter_context(tempfile.TemporaryDirectory(prefix="java-runner-", dir=config.temp_root))
             root = Path(temporary)
             source_root = root / "sources"
             classes = root / "classes"
@@ -290,27 +279,30 @@ def run_java_module(
                 target = source_root / source.path
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(source.content, encoding="utf-8")
-                source_paths.append(str(target))
-            compile_process = subprocess.run(
-                [javac, "-encoding", "UTF-8", "-d", str(classes), *source_paths],
-                cwd=root,
-                env=_safe_environment(),
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=config.timeout_seconds,
+                source_paths.append("/sources/" + source.path)
+            sandbox = DockerSandbox(docker, config.docker_image, source_root, 20, config.max_output_bytes)
+            config.sandbox = sandbox
+            cleanup.callback(sandbox.close)
+            try:
+                sandbox.start()
+            except OSError:
+                return JavaCheckResult(status=JavaCheckStatus.ENVIRONMENT_UNAVAILABLE,
+                                       message="Docker/JDK недоступен; Java на хосте не запускается",
+                                       model_fingerprint=parsed_artifact.model_fingerprint)
+            code, stdout, stderr, reason = sandbox.execute(
+                ["javac", "-J-Xmx128m", "-J-XX:ActiveProcessorCount=1", "-proc:none", "-encoding", "UTF-8", "-d", "/work", *source_paths],
+                timeout=config.deadline - time.monotonic(),
             )
-            if compile_process.returncode != 0:
+            if code != 0 or reason:
                 return JavaCheckResult(
-                    status=JavaCheckStatus.COMPILE_ERROR,
+                    status=JavaCheckStatus(reason) if reason else JavaCheckStatus.COMPILE_ERROR,
                     message="javac rejected the generated sources",
                     model_fingerprint=parsed_artifact.model_fingerprint,
-                    stdout=compile_process.stdout[:config.max_output_bytes],
-                    stderr=compile_process.stderr[:config.max_output_bytes],
-                    exit_code=compile_process.returncode,
+                    stdout=stdout,
+                    stderr=stderr,
+                    exit_code=code,
                 )
+            config.compiled = True
 
             initial = parsed_model.initial
             queue: deque[tuple[dict[str, Any], tuple[str, ...]]] = deque([(initial, ())])
@@ -321,19 +313,20 @@ def run_java_module(
             last_exit: int | None = None
             while queue:
                 state, path = queue.popleft()
-                for transition in parsed_model.transitions:
-                    checks += 1
-                    if checks > config.max_checks:
+                for transition in [*parsed_model.transitions, None]:
+                    if checks >= config.max_checks:
                         return JavaCheckResult(
-                            status=JavaCheckStatus.OUTPUT_LIMIT_REACHED,
+                            status=JavaCheckStatus.CHECK_LIMIT_REACHED,
                             message="Java behavior check limit reached",
                             model_fingerprint=parsed_artifact.model_fingerprint,
                             checks_run=checks,
                         )
-                    expected = _expected_state(parsed_model, state, transition.name)
+                    checks += 1
+                    event = transition.name if transition else "__UNKNOWN_EVENT__"
+                    expected = _expected_state(parsed_model, state, event) if transition else state
                     status, failed, stdout, stderr, exit_code = _check_path(
-                        java, parsed_artifact, parsed_model, classes, path,
-                        state, transition.name, expected, config,
+                        docker, parsed_artifact, parsed_model, classes, path,
+                        state, event, expected, config,
                     )
                     last_stdout, last_stderr, last_exit = stdout, stderr, exit_code
                     if status:
@@ -347,7 +340,7 @@ def run_java_module(
                             stderr=stderr[:config.max_output_bytes],
                             exit_code=exit_code,
                         )
-                    if bool(_evaluate(transition.guard.root, state)):
+                    if transition and bool(_evaluate(transition.guard.root, state)):
                         key = tuple(sorted(expected.items()))
                         if key not in seen:
                             seen.add(key)
@@ -360,17 +353,22 @@ def run_java_module(
                 stderr=last_stderr[:config.max_output_bytes],
                 exit_code=last_exit,
             )
-    except subprocess.TimeoutExpired as error:
-        return JavaCheckResult(
-            status=JavaCheckStatus.TIMEOUT,
-            message="Java compilation exceeded the time limit",
-            model_fingerprint=parsed_artifact.model_fingerprint,
-            stdout=_text(error.stdout)[:config.max_output_bytes],
-            stderr=_text(error.stderr)[:config.max_output_bytes],
-        )
     except OSError as error:
         return JavaCheckResult(
             status=JavaCheckStatus.RUNNER_ERROR,
             message=str(error),
             model_fingerprint=parsed_artifact.model_fingerprint,
         )
+
+
+def run_java_module(artifact, model, config: JavaRunnerConfig | None = None) -> JavaCheckResult:
+    config = copy.copy(config or JavaRunnerConfig())
+    config.compiled = False
+    result = _run_java_module(artifact, model, config)
+    try:
+        result.artifact_fingerprint = fingerprint_artifact(JavaArtifact.model_validate(artifact))
+    except ValueError:
+        pass
+    result.compilation = "PASSED" if config.compiled else "FAILED" if result.status == JavaCheckStatus.COMPILE_ERROR else "NOT_COMPLETED"
+    result.coverage = "COMPLETE_STATE_EVENT" if result.status == JavaCheckStatus.PASSED else "NOT_COMPLETED"
+    return result

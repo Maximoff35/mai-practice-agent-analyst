@@ -87,8 +87,8 @@ def test_java_runner_reports_missing_environment(fixed_model, tmp_path, monkeypa
 
 
 def test_java_runner_compiles_and_checks_fixture(buggy_model, tmp_path):
-    if not __import__("shutil").which("javac") or not __import__("shutil").which("java"):
-        pytest.skip("JDK is not installed")
+    if not __import__("os").getenv("JAVA_RUNNER_INTEGRATION"):
+        pytest.skip("Set JAVA_RUNNER_INTEGRATION=1 for isolated Docker/JDK tests")
 
     result = run_java_module(
         _artifact(),
@@ -102,8 +102,8 @@ def test_java_runner_compiles_and_checks_fixture(buggy_model, tmp_path):
 
 
 def test_java_runner_accepts_fixed_fixture(fixed_model, tmp_path):
-    if not __import__("shutil").which("javac") or not __import__("shutil").which("java"):
-        pytest.skip("JDK is not installed")
+    if not __import__("os").getenv("JAVA_RUNNER_INTEGRATION"):
+        pytest.skip("Set JAVA_RUNNER_INTEGRATION=1 for isolated Docker/JDK tests")
 
     result = run_java_module(
         _artifact(JAVA_MACHINE_FIXED),
@@ -115,8 +115,8 @@ def test_java_runner_accepts_fixed_fixture(fixed_model, tmp_path):
 
 
 def test_java_runner_detects_removed_guard(buggy_model, tmp_path):
-    if not __import__("shutil").which("javac") or not __import__("shutil").which("java"):
-        pytest.skip("JDK is not installed")
+    if not __import__("os").getenv("JAVA_RUNNER_INTEGRATION"):
+        pytest.skip("Set JAVA_RUNNER_INTEGRATION=1 for isolated Docker/JDK tests")
     broken = JAVA_MACHINE.replace(
         'event.equals("Execute") && approved',
         'event.equals("Execute")',
@@ -134,8 +134,8 @@ def test_java_runner_detects_removed_guard(buggy_model, tmp_path):
 
 
 def test_java_runner_detects_wrong_effect(fixed_model, tmp_path):
-    if not __import__("shutil").which("javac") or not __import__("shutil").which("java"):
-        pytest.skip("JDK is not installed")
+    if not __import__("os").getenv("JAVA_RUNNER_INTEGRATION"):
+        pytest.skip("Set JAVA_RUNNER_INTEGRATION=1 for isolated Docker/JDK tests")
 
     result = run_java_module(
         _artifact(),
@@ -149,8 +149,8 @@ def test_java_runner_detects_wrong_effect(fixed_model, tmp_path):
 
 
 def test_java_runner_detects_wrong_initial_state(buggy_model, tmp_path):
-    if not __import__("shutil").which("javac") or not __import__("shutil").which("java"):
-        pytest.skip("JDK is not installed")
+    if not __import__("os").getenv("JAVA_RUNNER_INTEGRATION"):
+        pytest.skip("Set JAVA_RUNNER_INTEGRATION=1 for isolated Docker/JDK tests")
     wrong_initial = JAVA_MACHINE.replace('static String status = "Created";', 'static String status = "Approved";')
 
     result = run_java_module(
@@ -182,8 +182,8 @@ def test_java_runner_rejects_forbidden_capability(fixed_model, tmp_path):
 
 
 def test_java_runner_reports_timeout(buggy_model, tmp_path):
-    if not __import__("shutil").which("javac") or not __import__("shutil").which("java"):
-        pytest.skip("JDK is not installed")
+    if not __import__("os").getenv("JAVA_RUNNER_INTEGRATION"):
+        pytest.skip("Set JAVA_RUNNER_INTEGRATION=1 for isolated Docker/JDK tests")
     hanging = JAVA_MACHINE.replace(
         'if (line.equals("SNAPSHOT")) {\n        state();',
         'if (line.equals("SNAPSHOT")) {\n        while (true) {}',
@@ -200,8 +200,8 @@ def test_java_runner_reports_timeout(buggy_model, tmp_path):
 
 
 def test_java_runner_reports_output_limit(buggy_model, tmp_path):
-    if not __import__("shutil").which("javac") or not __import__("shutil").which("java"):
-        pytest.skip("JDK is not installed")
+    if not __import__("os").getenv("JAVA_RUNNER_INTEGRATION"):
+        pytest.skip("Set JAVA_RUNNER_INTEGRATION=1 for isolated Docker/JDK tests")
     noisy = JAVA_MACHINE.replace(
         'if (line.equals("SNAPSHOT")) {\n        state();',
         'if (line.equals("SNAPSHOT")) {\n        System.out.println("x".repeat(10000));',
@@ -218,8 +218,8 @@ def test_java_runner_reports_output_limit(buggy_model, tmp_path):
 
 
 def test_java_runner_reports_compile_error(buggy_model, tmp_path):
-    if not __import__("shutil").which("javac"):
-        pytest.skip("JDK is not installed")
+    if not __import__("os").getenv("JAVA_RUNNER_INTEGRATION"):
+        pytest.skip("Set JAVA_RUNNER_INTEGRATION=1 for isolated Docker/JDK tests")
 
     result = run_java_module(
         _artifact("public class Machine { syntax error }"),
