@@ -1,0 +1,467 @@
+[
+  {
+    "id": "application_buggy",
+    "requirements": "Заявка: Cancel сохраняет approved; Execute проверяет approved. Исполнение отменённой заявки запрещено.",
+    "expected": "BLOCKED",
+    "model": {
+      "variables": [
+        {
+          "name": "status",
+          "type": "enum",
+          "values": [
+            "Created",
+            "Approved",
+            "Cancelled",
+            "Executed"
+          ]
+        },
+        {
+          "name": "approved",
+          "type": "boolean"
+        },
+        {
+          "name": "cancelled",
+          "type": "boolean"
+        }
+      ],
+      "initial": {
+        "status": "Created",
+        "approved": false,
+        "cancelled": false
+      },
+      "transitions": [
+        {
+          "name": "Approve",
+          "guard": {
+            "eq": [
+              {
+                "var": "status"
+              },
+              "Created"
+            ]
+          },
+          "effects": [
+            {
+              "set": [
+                "status",
+                "Approved"
+              ]
+            },
+            {
+              "set": [
+                "approved",
+                true
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Cancel",
+          "guard": {
+            "in": [
+              {
+                "var": "status"
+              },
+              [
+                "Created",
+                "Approved"
+              ]
+            ]
+          },
+          "effects": [
+            {
+              "set": [
+                "status",
+                "Cancelled"
+              ]
+            },
+            {
+              "set": [
+                "cancelled",
+                true
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Execute",
+          "guard": {
+            "eq": [
+              {
+                "var": "approved"
+              },
+              true
+            ]
+          },
+          "effects": [
+            {
+              "set": [
+                "status",
+                "Executed"
+              ]
+            }
+          ]
+        }
+      ],
+      "properties": [
+        {
+          "name": "NoExecutedAfterCancel",
+          "type": "forbidden_state",
+          "expression": {
+            "and": [
+              {
+                "eq": [
+                  {
+                    "var": "status"
+                  },
+                  "Executed"
+                ]
+              },
+              {
+                "eq": [
+                  {
+                    "var": "cancelled"
+                  },
+                  true
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "application_fixed",
+    "requirements": "Заявка: Cancel сбрасывает approved=false; Execute требует approved. Исполнение отменённой заявки запрещено.",
+    "expected": "READY",
+    "model": {
+      "variables": [
+        {
+          "name": "status",
+          "type": "enum",
+          "values": [
+            "Created",
+            "Approved",
+            "Cancelled",
+            "Executed"
+          ]
+        },
+        {
+          "name": "approved",
+          "type": "boolean"
+        },
+        {
+          "name": "cancelled",
+          "type": "boolean"
+        }
+      ],
+      "initial": {
+        "status": "Created",
+        "approved": false,
+        "cancelled": false
+      },
+      "transitions": [
+        {
+          "name": "Approve",
+          "guard": {
+            "eq": [
+              {
+                "var": "status"
+              },
+              "Created"
+            ]
+          },
+          "effects": [
+            {
+              "set": [
+                "status",
+                "Approved"
+              ]
+            },
+            {
+              "set": [
+                "approved",
+                true
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Cancel",
+          "guard": {
+            "in": [
+              {
+                "var": "status"
+              },
+              [
+                "Created",
+                "Approved"
+              ]
+            ]
+          },
+          "effects": [
+            {
+              "set": [
+                "status",
+                "Cancelled"
+              ]
+            },
+            {
+              "set": [
+                "cancelled",
+                true
+              ]
+            },
+            {
+              "set": [
+                "approved",
+                false
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Execute",
+          "guard": {
+            "eq": [
+              {
+                "var": "approved"
+              },
+              true
+            ]
+          },
+          "effects": [
+            {
+              "set": [
+                "status",
+                "Executed"
+              ]
+            }
+          ]
+        }
+      ],
+      "properties": [
+        {
+          "name": "NoExecutedAfterCancel",
+          "type": "forbidden_state",
+          "expression": {
+            "and": [
+              {
+                "eq": [
+                  {
+                    "var": "status"
+                  },
+                  "Executed"
+                ]
+              },
+              {
+                "eq": [
+                  {
+                    "var": "cancelled"
+                  },
+                  true
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cycle_terminal",
+    "requirements": "Изначально Ready. Stay сохраняет Ready, Finish переводит Ready в Done. Done — явно допустимое завершение. Проверь достижимость Done и отсутствие остальных блокировок.",
+    "expected": "READY",
+    "model": {
+      "variables": [
+        {
+          "name": "status",
+          "type": "enum",
+          "values": [
+            "Ready",
+            "Done"
+          ]
+        }
+      ],
+      "initial": {
+        "status": "Ready"
+      },
+      "transitions": [
+        {
+          "name": "Stay",
+          "guard": {
+            "eq": [
+              {
+                "var": "status"
+              },
+              "Ready"
+            ]
+          },
+          "effects": [
+            {
+              "set": [
+                "status",
+                "Ready"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Finish",
+          "guard": {
+            "eq": [
+              {
+                "var": "status"
+              },
+              "Ready"
+            ]
+          },
+          "effects": [
+            {
+              "set": [
+                "status",
+                "Done"
+              ]
+            }
+          ]
+        }
+      ],
+      "properties": [
+        {
+          "name": "ReachDone",
+          "type": "reachable",
+          "expression": {
+            "eq": [
+              {
+                "var": "status"
+              },
+              "Done"
+            ]
+          }
+        },
+        {
+          "name": "NoDeadlock",
+          "type": "deadlock_free",
+          "terminal_states": {
+            "eq": [
+              {
+                "var": "status"
+              },
+              "Done"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "integer_swap",
+    "requirements": "Integer x,y в 0..1, initial x=0,y=1; flag=false сохраняется. Swap при x=0 и not flag одновременно x:=y,y:=x. Reset при x=1 возвращает x=0,y=1. Проверь достижимость x=1.",
+    "expected": "READY",
+    "model": {
+      "variables": [
+        {
+          "name": "x",
+          "type": "integer",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "y",
+          "type": "integer",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "flag",
+          "type": "boolean"
+        }
+      ],
+      "initial": {
+        "x": 0,
+        "y": 1,
+        "flag": false
+      },
+      "transitions": [
+        {
+          "name": "Swap",
+          "guard": {
+            "and": [
+              {
+                "eq": [
+                  {
+                    "var": "x"
+                  },
+                  0
+                ]
+              },
+              {
+                "not": {
+                  "var": "flag"
+                }
+              }
+            ]
+          },
+          "effects": [
+            {
+              "set": [
+                "x",
+                {
+                  "var": "y"
+                }
+              ]
+            },
+            {
+              "set": [
+                "y",
+                {
+                  "var": "x"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Reset",
+          "guard": {
+            "eq": [
+              {
+                "var": "x"
+              },
+              1
+            ]
+          },
+          "effects": [
+            {
+              "set": [
+                "x",
+                0
+              ]
+            },
+            {
+              "set": [
+                "y",
+                1
+              ]
+            }
+          ]
+        }
+      ],
+      "properties": [
+        {
+          "name": "ReachOne",
+          "type": "reachable",
+          "expression": {
+            "eq": [
+              {
+                "var": "x"
+              },
+              1
+            ]
+          }
+        }
+      ]
+    }
+  }
+]
