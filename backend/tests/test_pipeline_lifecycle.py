@@ -80,3 +80,18 @@ def test_expiry_capacity_and_duplicate_generation():
     state.created_at -= pipeline.ttl_seconds + 1
     with pytest.raises(CaseNotFoundError):
         pipeline.report(case.case_id)
+
+
+def test_delete_during_generation_revokes_pending_result():
+    pipeline = make_pipeline()
+    case = accepted(pipeline)
+    class DeletingGenerator(Generator):
+        def generate(self, *args):
+            pipeline.delete(case.case_id)
+            return super().generate(*args)
+    pipeline.generator = DeletingGenerator()
+    result = pipeline.generate(case.case_id)
+    assert result.status == "PIPELINE_ERROR"
+    assert result.artifact is result.review is result.compile_and_check is None
+    with pytest.raises(CaseNotFoundError):
+        pipeline.report(case.case_id)

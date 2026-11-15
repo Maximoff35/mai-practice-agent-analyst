@@ -75,6 +75,7 @@ class CaseState:
     check: JavaCheckResult | None = None
     status: str = "ANALYZED"
     message: str | None = None
+    revoked: bool = False
     created_at: float = field(default_factory=time.monotonic)
     lock: object = field(default_factory=Lock, repr=False)
 
@@ -152,6 +153,8 @@ class CasePipeline:
         case.status, case.message = "GENERATING", None
         try:
             artifact = self.generator.generate(case.requirements, case.model, case.model_fingerprint)
+            if case.revoked:
+                raise PipelineError("Принятие отозвано")
             artifact = JavaArtifact.model_validate(artifact).model_copy(deep=True)
             artifact_fingerprint = fingerprint_artifact(artifact)
             if artifact.model_fingerprint != case.model_fingerprint:
@@ -172,6 +175,10 @@ class CasePipeline:
             ):
                 raise PipelineError("Результат reviewer относится к другой модели или артефакту")
             case.review = review
+            if case.revoked:
+                raise PipelineError("Принятие отозвано")
+            if not artifact.generator_model or not review.reviewer_model or artifact.generator_model.casefold() == review.reviewer_model.casefold():
+                raise PipelineError("Нужны две разные подтверждённые модели LLM")
             paths = {source.path: len(source.content.splitlines()) for source in artifact.files}
             for finding in review.findings:
                 if finding.file is not None and (finding.file not in paths or (finding.line is not None and finding.line > paths[finding.file])):
@@ -196,6 +203,9 @@ class CasePipeline:
             case.lock.release()
 
     def _report(self, case: CaseState, status: str, message: str | None, *, persist: bool = True) -> PipelineReport:
+        if case.revoked:
+            case.artifact = case.review = case.check = None
+            status, message = "PIPELINE_ERROR", "Кейс удалён, принятие отозвано"
         if persist:
             case.status, case.message = status, message
         return PipelineReport(
@@ -216,13 +226,10 @@ class CasePipeline:
 
     def delete(self, case_id: str):
         case = self._case(case_id)
-        if not case.lock.acquire(blocking=False):
-            raise PipelineError("Кейс занят; повторите удаление после завершения")
-        try:
-            with self.store_lock:
-                self.cases.pop(case_id, None)
-        finally:
-            case.lock.release()
+        # Отзыв действует и во время внешнего вызова: его ответ уже не даст READY.
+        with self.store_lock:
+            case.revoked, case.accepted = True, False
+            self.cases.pop(case_id, None)
 
     def download(self, case_id: str) -> bytes:
         case = self._case(case_id)

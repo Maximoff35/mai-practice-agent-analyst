@@ -22,6 +22,7 @@ def _artifact(model_fingerprint: str) -> JavaArtifact:
         files=[JavaSourceFile(path="Machine.java", content="class Machine {}")],
         main_class="Machine",
         model_fingerprint=model_fingerprint,
+        generator_model="generator-test",
     )
 
 
