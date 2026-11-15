@@ -118,3 +118,40 @@ export type AnalysisResult = {
   related_requirements?: SourceReference[];
   explanation: string;
 };
+
+export type CaseAnalysis = {
+  case_id: string;
+  model_fingerprint: string;
+  analysis: AnalysisResult;
+  accepted: boolean;
+  mode?: "live" | "recorded";
+};
+
+export type JavaArtifact = {
+  main_class: string;
+  files: { path: string; content: string }[];
+  instruction?: string | null;
+  generator_model?: string | null;
+};
+
+export type JavaReview = {
+  approved: boolean;
+  reviewer_model: string | null;
+  message?: string | null;
+  findings: { severity: string; message: string; file?: string | null; line?: number | null; rule?: string | null; transition?: string | null }[];
+};
+
+export type JavaReport = {
+  case_id: string;
+  status: string;
+  model_fingerprint: string;
+  artifact_fingerprint: string | null;
+  artifact: JavaArtifact | null;
+  review: JavaReview | null;
+  compile_and_check: {
+    status: string; compilation: string; coverage: string;
+    checks_run: number; message?: string | null; failed_check?: string | null;
+    stdout: string; stderr: string;
+  } | null;
+  message: string | null;
+};

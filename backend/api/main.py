@@ -69,13 +69,16 @@ def get_agent() -> AnalystAgent:
 
 @lru_cache(maxsize=1)
 def get_pipeline() -> CasePipeline:
+    from analyst.java_reviewer import JavaReviewer
+    from orchestration.pipeline import UnavailableReviewer
     if get_setting("MAI_API_KEY") and (
         get_setting("MAI_GENERATOR_MODEL") or get_setting("MAI_MODEL")
     ):
         generator = JavaGenerator.from_env()
     else:
         generator = UnavailableGenerator()
-    return CasePipeline(get_agent(), generator=generator)
+    reviewer = JavaReviewer.from_env() if get_setting("MAI_API_KEY") and get_setting("MAI_REVIEWER_MODEL") else UnavailableReviewer()
+    return CasePipeline(get_agent(), generator=generator, reviewer=reviewer)
 
 
 @app.get("/health")

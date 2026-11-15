@@ -6,8 +6,8 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { ModelCardSkeleton } from "@/components/ModelCard";
 import AnalysisTabs from "@/components/AnalysisTabs";
 import InterpretationCard from "@/components/InterpretationCard";
-import { analyzeRequirements } from "@/lib/api";
-import type { AnalysisResult } from "@/lib/types";
+import { analyzeCaseRequirements, deleteCase } from "@/lib/java-api";
+import type { AnalysisResult, CaseAnalysis } from "@/lib/types";
 
 const EXAMPLE_TEXT =
   "Заявка имеет статус Created, Approved, Cancelled или Executed и признаки approved и cancelled. " +
@@ -24,6 +24,8 @@ export default function Home() {
   const [formState, setFormState] = useState<FormState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [savedCase, setSavedCase] = useState<CaseAnalysis | null>(null);
+  const [cleanupError, setCleanupError] = useState<string | null>(null);
   const [confirmingExample, setConfirmingExample] = useState(false);
   const [confirmingReanalysis, setConfirmingReanalysis] = useState(false);
   const [editing, setEditing] = useState(true);
@@ -45,10 +47,12 @@ export default function Home() {
     setFormState("loading");
     setErrorMessage(null);
     setResult(null);
+    invalidateJava();
 
     try {
-      const analysis = await analyzeRequirements(text);
-      setResult(analysis);
+      const analysis = await analyzeCaseRequirements(text);
+      setResult(analysis.analysis);
+      setSavedCase(analysis.saved);
       setFormState("success");
       setEditing(false);
     } catch (error) {
@@ -86,10 +90,16 @@ export default function Home() {
   }
 
   function refineRequirements() {
+    invalidateJava();
     setRequirements(result?.requirements ?? requirements);
     setEditing(true);
     setFormState("idle");
     setErrorMessage(null);
+  }
+
+  function invalidateJava() {
+    setSavedCase(null);
+    if (savedCase) void deleteCase(savedCase.case_id).catch(() => setCleanupError("Сервер не подтвердил удаление старого кейса. В интерфейсе его принятие сброшено; старые серверные данные хранятся не более часа."));
   }
 
   return (
@@ -108,6 +118,7 @@ export default function Home() {
           свойства и найдёт последовательности, приводящие к ошибке.
         </p>
       </header>
+      {cleanupError && <p role="alert" className="text-sm text-amber-400">{cleanupError}</p>}
 
       {editing ? (
         <section className="flex flex-col gap-4 p-6">
@@ -185,6 +196,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => {
+                invalidateJava();
                 setEditing(true);
                 setFormState("idle");
                 setErrorMessage(null);
@@ -228,7 +240,7 @@ export default function Home() {
             </p>
           </section>}
           <InterpretationCard model={result.behavioral_model} />
-          <AnalysisTabs result={result} />
+          <AnalysisTabs key={savedCase?.case_id ?? "legacy"} result={result} savedCase={editing ? null : savedCase} />
         </>
       )}
 

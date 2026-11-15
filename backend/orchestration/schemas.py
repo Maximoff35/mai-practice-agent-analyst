@@ -46,6 +46,7 @@ class CaseAnalysis(BaseModel):
     model_fingerprint: str
     analysis: AnalysisResult
     accepted: bool = False
+    mode: Literal["live", "recorded"] = "live"
 
 
 class CaseAcceptance(BaseModel):
@@ -67,4 +68,5 @@ class PipelineReport(BaseModel):
     review: JavaReview | None = None
     compile_and_check: JavaCheckResult | None = None
     message: str | None = None
+    mode: Literal["live", "recorded"] = "live"
 
