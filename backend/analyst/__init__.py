@@ -3,6 +3,7 @@
 from .agent import AnalysisResult, AnalystAgent
 from .mai import MAIAPIError, MAIConfigurationError, MAIError, MAIProvider, MAIResponseError
 from .provider import FakeLLMProvider, LLMProvider, UnsupportedRequirementsError
+from .generator import JavaGenerationError, JavaGenerator
 from .openrouter import (
     OpenRouterAPIError,
     OpenRouterConfigurationError,
@@ -17,6 +18,8 @@ __all__ = [
     "AnalysisResult",
     "AnalystAgent",
     "FakeLLMProvider",
+    "JavaGenerationError",
+    "JavaGenerator",
     "LLMProvider",
     "MAIAPIError",
     "MAIConfigurationError",
