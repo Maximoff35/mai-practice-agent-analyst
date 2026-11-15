@@ -47,7 +47,10 @@ class Reviewer:
 
 
 def passed_runner(artifact, model):
-    return JavaCheckResult(status=JavaCheckStatus.PASSED, checks_run=1)
+    return JavaCheckResult(status=JavaCheckStatus.PASSED, checks_run=1,
+                           model_fingerprint=artifact.model_fingerprint,
+                           artifact_fingerprint=fingerprint_artifact(artifact),
+                           compilation="PASSED", coverage="COMPLETE_STATE_EVENT")
 
 
 def failed_runner(artifact, model):
@@ -55,6 +58,8 @@ def failed_runner(artifact, model):
         status=JavaCheckStatus.BEHAVIOR_VIOLATED,
         message="Execute разрешён после Cancel",
         failed_check="Execute",
+        model_fingerprint=artifact.model_fingerprint,
+        artifact_fingerprint=fingerprint_artifact(artifact),
     )
 
 

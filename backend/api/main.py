@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 
 from analyst import (
@@ -118,6 +119,8 @@ def analyze_case_for_pipeline(
         raise HTTPException(status_code=422, detail=str(error)) from error
     except (OpenRouterError, MAIError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
+    except PipelineError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
 
 @app.post("/api/v2/cases/{case_id}/accept", response_model=CaseAnalysis)
@@ -158,3 +161,24 @@ def get_case_report(
         return pipeline.report(case_id)
     except CaseNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@app.get("/api/v2/cases/{case_id}/download")
+def download_case(case_id: str, pipeline: Annotated[CasePipeline, Depends(get_pipeline)]):
+    try:
+        content = pipeline.download(case_id)
+    except CaseNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except PipelineError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    return Response(content, media_type="application/zip", headers={"Content-Disposition": 'attachment; filename="java-module.zip"'})
+
+
+@app.delete("/api/v2/cases/{case_id}", status_code=204)
+def delete_case(case_id: str, pipeline: Annotated[CasePipeline, Depends(get_pipeline)]):
+    try:
+        pipeline.delete(case_id)
+    except CaseNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except PipelineError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error

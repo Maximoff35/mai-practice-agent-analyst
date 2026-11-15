@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -31,7 +32,7 @@ class JavaReview(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     approved: bool
-    findings: list[ReviewFinding] = Field(default_factory=list)
+    findings: list[ReviewFinding] = Field(default_factory=list, max_length=128)
     reviewer_model: str | None = Field(default=None, min_length=1, max_length=160)
     artifact_fingerprint: str = Field(min_length=1, max_length=128)
     model_fingerprint: str = Field(min_length=1, max_length=128)
@@ -59,8 +60,9 @@ class PipelineReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     case_id: str
-    status: str
+    status: Literal["ANALYZED", "ACCEPTED", "GENERATING", "GENERATED", "REVIEWED", "READY", "REVIEW_REJECTED", "JAVA_CHECK_FAILED", "PIPELINE_ERROR"]
     model_fingerprint: str
+    artifact_fingerprint: str | None = None
     artifact: JavaArtifact | None = None
     review: JavaReview | None = None
     compile_and_check: JavaCheckResult | None = None
