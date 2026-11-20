@@ -1,0 +1,37 @@
+[
+  {
+    "id": "application_buggy",
+    "title": "Заявка с ошибочной отменой",
+    "requirements": "Заявка имеет статус Created, Approved, Cancelled или Executed и признаки approved и cancelled. Изначально статус Created, оба признака false. Approve разрешён только в Created и задаёт Approved и approved=true. Cancel разрешён в Created или Approved и задаёт Cancelled и cancelled=true, не меняя approved. Execute разрешён при approved=true независимо от статуса и задаёт Executed. Запрещено состояние status=Executed при cancelled=true. Проверь именно эти правила без исправлений.",
+    "expected_status": "PROPERTY_VIOLATED",
+    "expected_semantics": "Статус и два булевых признака; три перехода. Cancel сохраняет approved, Execute проверяет только approved. Запрет исполненной отменённой заявки; путь согласование → отмена → исполнение. Имена могут отличаться."
+  },
+  {
+    "id": "application_fixed",
+    "title": "Заявка с исправленной отменой",
+    "requirements": "Заявка имеет статус Created, Approved, Cancelled или Executed и признаки approved и cancelled. Изначально статус Created, оба признака false. Approve разрешён только в Created и задаёт Approved и approved=true. Cancel разрешён в Created или Approved и задаёт Cancelled, cancelled=true и approved=false. Execute разрешён при approved=true независимо от статуса и задаёт Executed. Запрещено состояние status=Executed при cancelled=true. Проверь именно эти правила без исправлений.",
+    "expected_status": "PROPERTY_HOLDS",
+    "expected_semantics": "Та же модель заявки, но Cancel сбрасывает approved. После отмены Execute недоступен; запрет исполненной отменённой заявки выполняется."
+  },
+  {
+    "id": "mutex_safe",
+    "title": "Взаимное исключение двух процессов",
+    "requirements": "Два процесса A и B используют общий ресурс. Булевы признаки inA и inB изначально false. EnterA разрешён, только когда inA=false и inB=false, и устанавливает inA=true. EnterB разрешён, только когда inA=false и inB=false, и устанавливает inB=true. ExitA разрешён при inA=true и сбрасывает inA=false; ExitB разрешён при inB=true и сбрасывает inB=false. Остальные признаки при каждом переходе сохраняются. Запрещено одновременное inA=true и inB=true. Не добавляй другие правила.",
+    "expected_status": "PROPERTY_HOLDS",
+    "expected_semantics": "Две булевы переменные без статуса заявки; вход каждого процесса требует свободного ресурса; выход сбрасывает только собственный признак. Четыре перехода, свойство взаимного исключения."
+  },
+  {
+    "id": "mutex_buggy",
+    "title": "Ошибка взаимного исключения",
+    "requirements": "Два процесса A и B используют общий ресурс. Булевы признаки inA и inB изначально false. EnterA разрешён, только когда inA=false и inB=false, и устанавливает inA=true. EnterB разрешён при inB=false независимо от inA и устанавливает inB=true. ExitA разрешён при inA=true и сбрасывает inA=false; ExitB разрешён при inB=true и сбрасывает inB=false. Остальные признаки при каждом переходе сохраняются. Запрещено одновременное inA=true и inB=true. Не исправляй ошибку EnterB.",
+    "expected_status": "PROPERTY_VIOLATED",
+    "expected_semantics": "Две булевы переменные, четыре перехода. EnterB игнорирует inA, поэтому EnterA → EnterB нарушает взаимное исключение. Не добавлять отсутствующий guard."
+  },
+  {
+    "id": "ambiguous",
+    "title": "Неполные правила заявки",
+    "requirements": "Заявку можно согласовать, отменить и исполнить. Проверь, что всё безопасно.",
+    "expected_status": null,
+    "expected_semantics": "Недостаточно данных для однозначной модели: не заданы начальное состояние, допустимость исполнения после отмены и точное свойство безопасности. Нужны уточнения; любой результат TLC для придуманной интерпретации не подтверждает исходные требования."
+  }
+]

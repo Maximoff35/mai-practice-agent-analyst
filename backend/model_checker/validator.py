@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from .schemas import (
+    INTEGER_MAX,
+    INTEGER_MIN,
     BehavioralModel,
     BooleanVariable,
     EnumVariable,
@@ -49,6 +51,8 @@ def _term(node: Any, variables: dict[str, Variable], path: str) -> TermType:
     if type(node) is bool:
         return TermType("boolean")
     if type(node) is int:
+        if not INTEGER_MIN <= node <= INTEGER_MAX:
+            _fail(path, f"integer literal must be between {INTEGER_MIN} and {INTEGER_MAX}")
         return TermType("integer")
     if isinstance(node, str):
         return TermType("enum")
@@ -173,5 +177,13 @@ def validate_model(model: BehavioralModel | Mapping[str, Any]) -> BehavioralMode
         if prop.name in property_names:
             _fail(path, f"duplicate property name {prop.name!r}")
         property_names.add(prop.name)
-        _predicate(prop.expression.root, variables, f"{path}.expression")
+        if prop.type == "deadlock_free":
+            if prop.terminal_states is not None:
+                _predicate(prop.terminal_states.root, variables, f"{path}.terminal_states")
+        else:
+            _predicate(prop.expression.root, variables, f"{path}.expression")
+    if model.interpretation is not None:
+        unknown = model.interpretation.property_rationale.keys() - property_names
+        if unknown:
+            _fail("interpretation.property_rationale", f"unknown properties {sorted(unknown)}")
     return model

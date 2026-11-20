@@ -6,12 +6,13 @@ import json
 import re
 from typing import Any
 
+from .references import attach_result_references
 from .result import TLCStatistics, TraceState, VerificationResult, VerificationStatus
 from .schemas import BehavioralModel
 
 
 _STATE_HEADER = re.compile(r"^State\s+(\d+):\s*<([^>]*)>", re.MULTILINE)
-_STATE_FIELD = re.compile(r"^\s*/\\\s+v_([A-Za-z][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$")
+_STATE_FIELD = re.compile(r"^\s*(?:/\\\s+)?v_([A-Za-z][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$")
 _SUMMARY = re.compile(
     r"(\d+) states generated,\s*(\d+) distinct states found,\s*(\d+) states left on queue",
     re.IGNORECASE,
@@ -137,19 +138,48 @@ def parse_tlc_output(
     common = {"stdout": stdout, "stderr": stderr, "exit_code": exit_code, "statistics": statistics}
     if timed_out:
         return VerificationResult(status=VerificationStatus.TIMEOUT, message="TLC timed out", **common)
-    if _STATE_LIMIT.search(output):
+    if _STATE_LIMIT.search(output) or re.search(r"Error:\s+Invariant\s+MC_StateBudget\s+is violated", output):
         return VerificationResult(status=VerificationStatus.STATE_LIMIT_REACHED, message="TLC state limit reached", **common)
     violation = _VIOLATION.search(output)
     if violation:
         states = _states(output)
+        if not states and "violated by the initial state:" in violation.string[violation.start():]:
+            initial_output = output[violation.end():].split(":", 1)[1]
+            states = _states("State 1: <Initial predicate>\n" + initial_output)
+        prop = next((prop for prop in model.properties if prop.name == violation.group(1)), None) if model else None
+        if prop and prop.type in {"reachable", "deadlock_free"}:
+            expected_variables = {variable.name for variable in model.variables}
+            if not states or any(set(state.values) != expected_variables for state in states):
+                return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="TLC не вернул полную трассу", **common)
         if model:
             _label_transitions(states, model)
-        return VerificationResult(
+        if prop and prop.type == "deadlock_free":
+            last = states[-1].values
+            if (prop.terminal_states is not None and _evaluate(prop.terminal_states.root, last)) or any(
+                _evaluate(transition.guard.root, last) for transition in model.transitions
+            ):
+                return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="Трасса TLC не заканчивается блокировкой", **common)
+            return attach_result_references(VerificationResult(
+                status=VerificationStatus.PROPERTY_VIOLATED, violated_property=prop.name,
+                message="Найдена блокировка: нет разрешённых бизнес-переходов вне допустимого завершения.",
+                deadlock_path=states, **common,
+            ), model)
+        if prop and prop.type == "reachable":
+            if not _evaluate(prop.expression.root, states[-1].values):
+                return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="Трасса TLC не заканчивается в цели", **common)
+            return attach_result_references(VerificationResult(
+                status=VerificationStatus.PROPERTY_HOLDS,
+                message="Цель достижима в конечной модели; путь приведён в witness.",
+                witness=states,
+                **common,
+            ), model)
+        result = VerificationResult(
             status=VerificationStatus.PROPERTY_VIOLATED,
             violated_property=violation.group(1),
             counterexample=states,
             **common,
         )
+        return attach_result_references(result, model) if model else result
     if _ANY_INVARIANT.search(output):
         return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="Unrecognized TLC invariant violation", **common)
     if _MODEL_ERROR.search(output):
@@ -157,5 +187,18 @@ def parse_tlc_output(
     if _TLC_ERROR.search(output):
         return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="TLC reported an error", **common)
     if exit_code == 0 and _SUCCESS.search(output):
+        if model and len(model.properties) == 1 and model.properties[0].type == "reachable":
+            return attach_result_references(VerificationResult(
+                status=VerificationStatus.PROPERTY_VIOLATED,
+                violated_property=model.properties[0].name,
+                message="Цель недостижима в полностью исследованной конечной модели.",
+                **common,
+            ), model)
+        if model and len(model.properties) == 1 and model.properties[0].type == "deadlock_free":
+            return attach_result_references(VerificationResult(
+                status=VerificationStatus.PROPERTY_HOLDS,
+                message="В полностью исследованной конечной модели блокировок вне допустимого завершения не найдено.",
+                **common,
+            ), model)
         return VerificationResult(status=VerificationStatus.PROPERTY_HOLDS, **common)
     return VerificationResult(status=VerificationStatus.ENGINE_ERROR, message="TLC did not complete successfully", **common)

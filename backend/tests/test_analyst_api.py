@@ -1,11 +1,9 @@
-from pathlib import Path
-
 import pytest
 from fastapi.testclient import TestClient
 
 from analyst import AnalystAgent, FakeLLMProvider
-from api.main import app
-from model_checker import VerificationResult, VerificationStatus
+from api.main import app, get_agent
+from model_checker import TraceState, VerificationResult, VerificationStatus
 
 
 DEMO_REQUIREMENTS = (
@@ -21,6 +19,16 @@ def test_fake_provider_matches_acceptance_fixtures(buggy_model, fixed_model):
     assert provider.build_model(FIXED_REQUIREMENTS).model_dump(mode="json") == fixed_model
 
 
+def test_fake_provider_accepts_full_acceptance_texts(buggy_model, fixed_model):
+    import json
+    from pathlib import Path
+
+    scenarios = json.loads((Path(__file__).parents[1] / "evaluation/scenarios.json").read_text(encoding="utf-8"))
+    provider = FakeLLMProvider()
+    assert provider.build_model(scenarios[0]["requirements"]).model_dump(mode="json") == buggy_model
+    assert provider.build_model(scenarios[1]["requirements"]).model_dump(mode="json") == fixed_model
+
+
 def test_agent_calls_checker_once_and_returns_structured_result():
     calls = []
 
@@ -33,6 +41,8 @@ def test_agent_calls_checker_once_and_returns_structured_result():
     assert result.behavioral_model == calls[0]
     assert result.verification_result.status == VerificationStatus.PROPERTY_HOLDS
     assert result.counterexample is None
+    assert result.related_requirements == []
+    assert result.verification_result.related_requirements == []
     assert "не нашёл" in result.explanation
 
 
@@ -54,6 +64,115 @@ def test_agent_accepts_another_provider_without_changes(buggy_model):
     assert result.explanation == "Объяснение другого провайдера"
 
 
+def test_agent_returns_verified_related_requirements(buggy_model):
+    requirements = "[REQ-1] approve заявку. [REQ-2] cancel заявку."
+    buggy_model["transitions"][0]["source_reference"] = {
+        "id": "REQ-1",
+        "fragment": "approve заявку.",
+    }
+    buggy_model["transitions"][1]["source_reference"] = {
+        "id": "REQ-2",
+        "fragment": "cancel заявку.",
+    }
+    buggy_model["properties"][0]["source_reference"] = {
+        "id": "REQ-2",
+        "fragment": "cancel заявку.",
+    }
+
+    class ReferencingProvider:
+        def build_model(self, requirements):
+            from model_checker import BehavioralModel
+
+            return BehavioralModel.model_validate(buggy_model)
+
+        def explain_result(self, requirements, model, result):
+            return "Связанный результат"
+
+    result = AnalystAgent(
+        ReferencingProvider(),
+        checker=lambda model: VerificationResult(
+            status=VerificationStatus.PROPERTY_VIOLATED,
+            violated_property="NoExecutedAfterCancel",
+            counterexample=[
+                TraceState(number=1, values={}, transition=None),
+                TraceState(number=2, values={}, transition="Approve"),
+                TraceState(number=3, values={}, transition="Cancel"),
+            ],
+        ),
+    ).analyze(requirements)
+
+    assert [reference.id for reference in result.related_requirements] == ["REQ-2", "REQ-1"]
+    assert [reference.id for reference in result.counterexample[2].related_requirements] == ["REQ-2"]
+
+
+@pytest.mark.parametrize("status", list(VerificationStatus))
+def test_api_preserves_checked_result_when_explanation_fails(status):
+    calls = []
+    verification = VerificationResult(
+        status=status,
+        counterexample=[TraceState(number=1, values={"status": "Created"})]
+        if status == VerificationStatus.PROPERTY_VIOLATED else [],
+        statistics={"distinct_states": 4},
+    )
+
+    class FailingExplanationProvider(FakeLLMProvider):
+        def explain_result(self, requirements, model, result):
+            raise RuntimeError("secret-provider-response")
+
+    def checker(model):
+        calls.append(model)
+        return verification
+
+    app.dependency_overrides[get_agent] = lambda: AnalystAgent(FailingExplanationProvider(), checker)
+    try:
+        response = TestClient(app).post("/api/analyze", json={"requirements": DEMO_REQUIREMENTS})
+    finally:
+        app.dependency_overrides.pop(get_agent, None)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(calls) == 1
+    assert body["behavioral_model"] == calls[0].model_dump(mode="json")
+    assert body["verification_result"] == verification.model_dump(mode="json")
+    assert body["counterexample"] == (verification.model_dump(mode="json")["counterexample"] or None)
+    assert "Шаблонное сообщение" in body["explanation"]
+    assert status.value in body["explanation"]
+    assert "secret-provider-response" not in response.text
+
+
+@pytest.mark.parametrize("explanation", ["", "  ", None])
+def test_empty_explanation_uses_fallback(explanation):
+    class EmptyExplanationProvider(FakeLLMProvider):
+        def explain_result(self, requirements, model, result):
+            return explanation
+
+    result = AnalystAgent(
+        EmptyExplanationProvider(),
+        checker=lambda model: VerificationResult(status=VerificationStatus.TIMEOUT),
+    ).analyze(DEMO_REQUIREMENTS)
+    assert result.verification_result.status == VerificationStatus.TIMEOUT
+    assert "Шаблонное сообщение" in result.explanation
+
+
+def test_model_construction_failure_still_returns_api_error():
+    from analyst import OpenRouterAPIError
+
+    class FailingModelProvider(FakeLLMProvider):
+        def build_model(self, requirements):
+            raise OpenRouterAPIError("OpenRouter API вернул HTTP 503")
+
+    def unexpected_checker(model):
+        pytest.fail("Checker не должен запускаться без модели")
+
+    app.dependency_overrides[get_agent] = lambda: AnalystAgent(FailingModelProvider(), unexpected_checker)
+    try:
+        response = TestClient(app).post("/api/analyze", json={"requirements": DEMO_REQUIREMENTS})
+    finally:
+        app.dependency_overrides.pop(get_agent, None)
+    assert response.status_code == 502
+    assert "behavioral_model" not in response.json()
+
+
 def test_health():
     response = TestClient(app).get("/health")
     assert response.status_code == 200
@@ -72,16 +191,6 @@ def test_fake_provider_rejects_unrelated_requirements():
     assert "демонстрационный сценарий" in response.json()["detail"]
 
 
-@pytest.fixture
-def configured_tlc(monkeypatch):
-    tools = Path(__file__).parents[1] / ".tools"
-    java = tools / "java" / "bin" / "java.exe"
-    jar = tools / "tla2tools.jar"
-    if not java.is_file() or not jar.is_file():
-        pytest.skip("Локальные Java и TLC не настроены")
-    monkeypatch.setenv("MODEL_CHECKER_JAVA", str(java))
-    monkeypatch.setenv("MODEL_CHECKER_TLA2TOOLS_JAR", str(jar))
-    monkeypatch.setenv("MODEL_CHECKER_TEMP_DIR", str(tools))
 
 
 @pytest.mark.integration

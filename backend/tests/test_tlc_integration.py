@@ -33,3 +33,41 @@ def test_buggy_model_finds_real_counterexample(buggy_model):
 def test_fixed_model_holds_with_real_tlc(fixed_model):
     result = verify(fixed_model, _config_or_skip())
     assert result.status == VerificationStatus.PROPERTY_HOLDS, result.stdout + result.stderr
+
+
+def integer_boundary_model():
+    low, high = -2147483648, 2147483647
+    return {
+        "variables": [{"name": "n", "type": "integer", "min": low, "max": high}],
+        "initial": {"n": low},
+        "transitions": [
+            {"name": "Raise", "guard": {"eq": [{"var": "n"}, low]}, "effects": [{"set": ["n", high]}]},
+            {"name": "Lower", "guard": {"eq": [{"var": "n"}, high]}, "effects": [{"set": ["n", low]}]},
+        ],
+        "properties": [{"id": "P1", "type": "invariant", "expression": {"in": [{"var": "n"}, [low, high]]}}],
+    }
+
+
+@pytest.mark.integration
+def test_tlc_checks_full_int32_domain_and_both_boundary_values():
+    result = verify(integer_boundary_model(), _config_or_skip())
+    assert result.status == VerificationStatus.PROPERTY_HOLDS, result.stdout + result.stderr
+    assert result.statistics.distinct_states == 2
+
+
+@pytest.mark.parametrize("value", [-2147483649, 2147483648])
+@pytest.mark.parametrize("position", ["bound", "initial", "guard", "effect", "property"])
+def test_out_of_range_integer_is_model_invalid(value, position):
+    model = integer_boundary_model()
+    if position == "bound":
+        model["variables"][0]["min" if value < 0 else "max"] = value
+    elif position == "initial":
+        model["initial"]["n"] = value
+    elif position == "guard":
+        model["transitions"][0]["guard"] = {"eq": [value, value]}
+    elif position == "effect":
+        model["transitions"][0]["effects"][0]["set"][1] = value
+    else:
+        model["properties"][0]["expression"] = {"in": [value, [value]]}
+    result = verify(model)
+    assert result.status == VerificationStatus.MODEL_INVALID

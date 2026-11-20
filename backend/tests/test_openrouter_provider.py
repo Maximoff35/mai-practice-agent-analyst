@@ -63,6 +63,32 @@ def test_openrouter_rejects_invalid_model(buggy_model):
             provider.build_model(REQUIREMENTS)
 
 
+def test_openrouter_accepts_only_confirmed_source_reference(buggy_model):
+    requirements = "[REQ-1] Пользователь согласует заявку."
+    buggy_model["properties"][0]["source_reference"] = {
+        "id": "REQ-1",
+        "fragment": "Пользователь согласует заявку.",
+    }
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json=_response(json.dumps(buggy_model))))
+    with httpx.Client(transport=transport) as client:
+        provider = OpenRouterProvider("test-key", "openrouter/free", client=client)
+        model = provider.build_model(requirements)
+    assert model.properties[0].source_reference.id == "REQ-1"
+
+
+def test_openrouter_rejects_unconfirmed_source_reference(buggy_model):
+    requirements = "[REQ-1] Пользователь согласует заявку."
+    buggy_model["properties"][0]["source_reference"] = {
+        "id": "REQ-404",
+        "fragment": "выдумано",
+    }
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json=_response(json.dumps(buggy_model))))
+    with httpx.Client(transport=transport) as client:
+        provider = OpenRouterProvider("test-key", "openrouter/free", client=client)
+        with pytest.raises(OpenRouterModelError, match="source reference"):
+            provider.build_model(requirements)
+
+
 def test_openrouter_reports_api_error_without_key():
     transport = httpx.MockTransport(lambda request: httpx.Response(401, json={"error": {"message": "invalid key"}}))
     with httpx.Client(transport=transport) as client:

@@ -4,14 +4,23 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints, model_validator
 
 
 Identifier = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_]*$")]
+INTEGER_MIN = -(2**31)
+INTEGER_MAX = 2**31 - 1
 
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class SourceReference(StrictModel):
+    """A verified link to an explicitly marked requirement fragment."""
+
+    id: str = Field(min_length=1, pattern=r"^[A-Za-z][A-Za-z0-9_-]*$")
+    fragment: str = Field(min_length=1)
 
 
 class EnumVariable(StrictModel):
@@ -28,8 +37,8 @@ class BooleanVariable(StrictModel):
 class IntegerVariable(StrictModel):
     name: Identifier
     type: Literal["integer"]
-    min: int
-    max: int
+    min: int = Field(ge=INTEGER_MIN, le=INTEGER_MAX)
+    max: int = Field(ge=INTEGER_MIN, le=INTEGER_MAX)
 
 
 Variable = Annotated[
@@ -51,12 +60,47 @@ class Transition(StrictModel):
     name: Identifier
     guard: Expression
     effects: list[SetEffect] = Field(min_length=1)
+    source_reference: SourceReference | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class Property(StrictModel):
     name: Identifier
-    type: Literal["invariant", "forbidden_state"]
-    expression: Expression
+    type: Literal["invariant", "forbidden_state", "reachable", "deadlock_free"]
+    expression: Expression | None = Field(default=None, exclude_if=lambda value: value is None)
+    terminal_states: Expression | None = Field(default=None, exclude_if=lambda value: value is None)
+    source_reference: SourceReference | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_case_identifier(cls, value: Any) -> Any:
+        if isinstance(value, dict) and "id" in value:
+            value = value.copy()
+            identifier = value.pop("id")
+            if "name" in value and value["name"] != identifier:
+                raise ValueError("Property.id и Property.name должны совпадать")
+            value["name"] = identifier
+        return value
+
+    @model_validator(mode="after")
+    def require_type_specific_fields(self) -> "Property":
+        if self.type == "deadlock_free":
+            if self.expression is not None:
+                raise ValueError("deadlock_free не допускает expression; допустимое завершение задайте в terminal_states")
+        elif self.expression is None or self.terminal_states is not None:
+            raise ValueError("Для этого типа обязательна expression, terminal_states разрешено только для deadlock_free")
+        return self
+
+
+class Interpretation(StrictModel):
+    """Самооценка интерпретации LLM, а не доказательство полноты требований."""
+
+    assumptions: list[Annotated[str, StringConstraints(min_length=1)]] = Field(default_factory=list)
+    questions: list[Annotated[str, StringConstraints(min_length=1)]] = Field(default_factory=list)
+    property_rationale: dict[Identifier, Annotated[str, StringConstraints(min_length=1)]] = Field(default_factory=dict)
 
 
 class BehavioralModel(StrictModel):
@@ -64,3 +108,4 @@ class BehavioralModel(StrictModel):
     initial: dict[Identifier, Any]
     transitions: list[Transition] = Field(min_length=1)
     properties: list[Property] = Field(min_length=1)
+    interpretation: Interpretation | None = Field(default=None, exclude_if=lambda value: value is None)

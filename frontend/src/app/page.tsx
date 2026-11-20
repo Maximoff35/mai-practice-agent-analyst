@@ -3,15 +3,19 @@
 import { useState, type FormEvent } from "react";
 import RequirementsInput from "@/components/RequirementsInput";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import ModelCard, { ModelCardSkeleton } from "@/components/ModelCard";
-import PropertyCard from "@/components/PropertyCard";
-import VerificationResultCard from "@/components/VerificationResultCard";
-import { analyzeRequirements } from "@/lib/api";
-import type { AnalysisResult } from "@/lib/types";
+import { ModelCardSkeleton } from "@/components/ModelCard";
+import AnalysisTabs from "@/components/AnalysisTabs";
+import InterpretationCard from "@/components/InterpretationCard";
+import { analyzeCaseRequirements, deleteCase } from "@/lib/java-api";
+import type { AnalysisResult, CaseAnalysis } from "@/lib/types";
 
 const EXAMPLE_TEXT =
-  "Заявка после согласования может быть исполнена. " +
-  "Пользователь может отменить заявку до исполнения.";
+  "Заявка имеет статус Created, Approved, Cancelled или Executed и признаки approved и cancelled. " +
+  "Изначально статус Created, оба признака false. " +
+  "Approve разрешён только в Created и задаёт Approved и approved=true. " +
+  "Cancel разрешён в Created или Approved и задаёт Cancelled и cancelled=true, не меняя approved. " +
+  "Execute разрешён при approved=true независимо от статуса и задаёт Executed. " +
+  "Запрещено состояние status=Executed при cancelled=true. Проверь именно эти правила без исправлений.";
 
 type FormState = "idle" | "loading" | "error" | "success";
 
@@ -20,7 +24,10 @@ export default function Home() {
   const [formState, setFormState] = useState<FormState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [savedCase, setSavedCase] = useState<CaseAnalysis | null>(null);
+  const [cleanupError, setCleanupError] = useState<string | null>(null);
   const [confirmingExample, setConfirmingExample] = useState(false);
+  const [confirmingReanalysis, setConfirmingReanalysis] = useState(false);
   const [editing, setEditing] = useState(true);
 
   function handleExampleClick() {
@@ -36,7 +43,30 @@ export default function Home() {
     setConfirmingExample(false);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function runAnalysis(text: string) {
+    setFormState("loading");
+    setErrorMessage(null);
+    setResult(null);
+    invalidateJava();
+
+    try {
+      const analysis = await analyzeCaseRequirements(text);
+      setResult(analysis.analysis);
+      setSavedCase(analysis.saved);
+      setFormState("success");
+      setEditing(false);
+    } catch (error) {
+      setResult(null);
+      setFormState("error");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Не удалось выполнить анализ. Попробуйте ещё раз.",
+      );
+    }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmed = requirements.trim();
@@ -46,25 +76,36 @@ export default function Home() {
       return;
     }
 
-    setFormState("loading");
-    setErrorMessage(null);
-    setResult(null);
-
-    try {
-      const analysis = await analyzeRequirements(trimmed);
-      setResult(analysis);
-      setFormState("success");
-      setEditing(false);
-    } catch (error) {
-      setFormState("error");
-      setErrorMessage(error instanceof Error ? error.message : "Не удалось выполнить анализ. Попробуйте ещё раз.");
+    if (result) {
+      setConfirmingReanalysis(true);
+      return;
     }
+
+    void runAnalysis(trimmed);
+  }
+
+  function confirmReanalysis() {
+    setConfirmingReanalysis(false);
+    void runAnalysis(requirements.trim());
+  }
+
+  function refineRequirements() {
+    invalidateJava();
+    setRequirements(result?.requirements ?? requirements);
+    setEditing(true);
+    setFormState("idle");
+    setErrorMessage(null);
+  }
+
+  function invalidateJava() {
+    setSavedCase(null);
+    if (savedCase) void deleteCase(savedCase.case_id).catch(() => setCleanupError("Сервер не подтвердил удаление старого кейса. В интерфейсе его принятие сброшено; старые серверные данные хранятся не более часа."));
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[62rem] flex-1 flex-col gap-8 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-[62rem] flex-1 flex-col gap-6 px-4 py-8 sm:gap-8 sm:px-6 sm:py-12">
       <header className="flex flex-col gap-2">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+        <h1 className="flex flex-wrap items-center gap-2 text-xl font-semibold sm:text-2xl">
           <span className="flex items-baseline leading-none text-accent">
             <span className="text-[1.75rem] font-extrabold">S</span>
             <span className="text-[0.875rem] font-bold">AI</span>
@@ -77,9 +118,17 @@ export default function Home() {
           свойства и найдёт последовательности, приводящие к ошибке.
         </p>
       </header>
+      {cleanupError && <p role="alert" className="text-sm text-amber-400">{cleanupError}</p>}
 
       {editing ? (
         <section className="flex flex-col gap-4 p-6">
+          {result && (
+            <p className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2 text-xs leading-relaxed text-foreground/65">
+              Ниже показан результат предыдущего анализа. Изменённый текст
+              будет проверен заново после подтверждения и заменит старый
+              результат.
+            </p>
+          )}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <RequirementsInput
               value={requirements}
@@ -143,25 +192,35 @@ export default function Home() {
         </section>
       ) : (
         <section className="flex flex-col gap-4 p-6">
-          <button
-            type="button"
-            onClick={() => {
-              setEditing(true);
-              setResult(null);
-              setFormState("idle");
-              setErrorMessage(null);
-            }}
-            className="inline-flex w-fit items-center gap-2 rounded-xl border border-accent/60 bg-accent/10 px-6 py-2.5 text-sm font-medium text-accent transition-colors duration-300 hover:bg-accent/20"
-          >
-            <span aria-hidden="true" className="text-base leading-none">
-              +
-            </span>
-            Новая модель
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                invalidateJava();
+                setEditing(true);
+                setFormState("idle");
+                setErrorMessage(null);
+              }}
+              className="inline-flex w-fit items-center gap-2 rounded-xl border border-accent/60 bg-accent/10 px-6 py-2.5 text-sm font-medium text-accent transition-colors duration-300 hover:bg-accent/20"
+            >
+              <span aria-hidden="true" className="text-base leading-none">
+                +
+              </span>
+              Новая модель
+            </button>
+
+            <button
+              type="button"
+              onClick={refineRequirements}
+              className="inline-flex w-fit items-center gap-2 rounded-xl border border-accent/60 bg-accent/15 px-6 py-2.5 text-sm font-medium text-accent transition-colors duration-300 hover:bg-accent/25"
+            >
+              Уточнить требования и проверить снова
+            </button>
+          </div>
 
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium text-foreground/80">
-              Описание поведения системы
+              Текст текущего анализа
             </span>
             <p className="console-scrollbar max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-foreground/15 bg-transparent px-4 py-3 pr-6 text-sm leading-relaxed text-foreground/75">
               {result?.requirements ?? requirements}
@@ -173,18 +232,16 @@ export default function Home() {
       {formState === "loading" ? (
         <ModelCardSkeleton />
       ) : (
-        result && <ModelCard model={result.behavioral_model} />
-      )}
-
-      {result && formState !== "loading" && (
-        <PropertyCard properties={result.behavioral_model.properties} />
-      )}
-
-      {result && formState !== "loading" && (
-        <VerificationResultCard
-          result={result.verification_result}
-          explanation={result.explanation}
-        />
+        result && <>
+          {editing && <section className="flex flex-col gap-2 px-6">
+            <h2 className="text-sm font-medium">Текст предыдущего анализа</h2>
+            <p className="max-h-56 overflow-y-auto break-words whitespace-pre-wrap text-sm text-foreground/75">
+              {result.requirements}
+            </p>
+          </section>}
+          <InterpretationCard model={result.behavioral_model} />
+          <AnalysisTabs key={savedCase?.case_id ?? "legacy"} result={result} savedCase={editing ? null : savedCase} />
+        </>
       )}
 
       {confirmingExample && (
@@ -195,6 +252,17 @@ export default function Home() {
           cancelLabel="Отмена"
           onConfirm={confirmExample}
           onCancel={() => setConfirmingExample(false)}
+        />
+      )}
+
+      {confirmingReanalysis && (
+        <ConfirmDialog
+          title="Запустить новый анализ?"
+          message="Построенная модель и результат проверки будут заменены новым анализом текущего описания."
+          confirmLabel="Проанализировать"
+          cancelLabel="Отмена"
+          onConfirm={confirmReanalysis}
+          onCancel={() => setConfirmingReanalysis(false)}
         />
       )}
     </main>

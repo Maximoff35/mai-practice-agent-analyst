@@ -36,7 +36,7 @@ export default function RequirementsInput({
         maxLength={MAX_LENGTH}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Например: заявку согласовывают, затем отменяют, но система всё равно позволяет её исполнить. Опишите участников, состояния, события и правила переходов обычным текстом."
-        className="console-scrollbar min-h-[230px] w-full resize-none rounded-xl border border-neutral-600/60 bg-neutral-900/50 px-4 py-3 pr-6 text-sm leading-relaxed text-foreground/75 shadow-sm outline-none transition-colors duration-300 placeholder:text-foreground/35 focus:border-accent/70 focus:bg-input focus:ring-2 focus:ring-accent/15"
+        className="console-scrollbar min-h-[230px] w-full resize-none rounded-xl border border-foreground/15 bg-foreground/[0.04] px-4 py-3 pr-6 text-sm leading-relaxed text-foreground/80 shadow-sm outline-none transition-colors duration-300 placeholder:text-foreground/30 focus:border-accent/70 focus:bg-input focus:ring-2 focus:ring-accent/15"
       />
 
       <div className="flex justify-between text-xs text-foreground/50">

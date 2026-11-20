@@ -70,7 +70,7 @@ class FakeLLMProvider:
 
     def build_model(self, requirements: str) -> BehavioralModel:
         text = requirements.casefold()
-        if "заявк" not in text or "отмен" not in text:
+        if "заявк" not in text or not ("отмен" in text or "cancel" in text):
             raise UnsupportedRequirementsError(
                 "FakeLLMProvider поддерживает только демонстрационный сценарий заявки и отмены."
             )
@@ -85,6 +85,8 @@ class FakeLLMProvider:
         model: BehavioralModel,
         result: VerificationResult,
     ) -> str:
+        if any(prop.type in {"reachable", "deadlock_free"} for prop in model.properties):
+            return "Результаты отдельных свойств приведены в property_results; witness — путь к цели, deadlock_path — путь к блокировке."
         if result.status == VerificationStatus.PROPERTY_VIOLATED:
             states = result.counterexample
             if [state.transition for state in states] == [None, "Approve", "Cancel", "Execute"]:

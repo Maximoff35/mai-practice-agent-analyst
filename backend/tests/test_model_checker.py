@@ -5,8 +5,14 @@ from pydantic import ValidationError
 
 from model_checker import (
     ModelValidationError,
+    SourceReferenceValidationError,
+    VerificationResult,
+    VerificationStatus,
+    TraceState,
+    attach_result_references,
     compile_expression,
     generate_tla,
+    validate_source_references,
     validate_model,
 )
 
@@ -25,7 +31,7 @@ def test_buggy_model_generation_preserves_approved(buggy_model):
     assert "v_cancelled' = TRUE" in cancel
     assert "UNCHANGED <<v_approved>>" in cancel
     assert "v_approved'" not in cancel
-    assert 'Property_NoExecutedAfterCancel == ~(((v_status = "Executed") /\\ (v_cancelled = TRUE)))' in result.tla
+    assert 'Property_NoExecutedAfterCancel == (~(((v_status = "Executed") /\\ (v_cancelled = TRUE)))) /\\ TypeOK' in result.tla
     assert "INVARIANT Property_NoExecutedAfterCancel" in result.cfg
     assert "SPECIFICATION Spec" in result.cfg
 
@@ -76,7 +82,7 @@ def test_expression_compiler(expression, expected):
         (lambda m: m["transitions"][0]["effects"][0]["set"].__setitem__(1, "Unknown"), "outside target domain"),
         (lambda m: m["properties"][0].update(expression={"var": "ghost"}), "unknown variable"),
         (lambda m: m["properties"][0].update(expression={"xor": [True, False]}), "unsupported operator"),
-        (lambda m: m["properties"][0].update(type="reachable"), "literal_error"),
+        (lambda m: m["properties"][0].update(type="unsupported"), "literal_error"),
     ],
 )
 def test_invalid_models(buggy_model, change, message):
@@ -130,6 +136,83 @@ def test_model_with_one_transition_is_valid(buggy_model):
     assert len(model.transitions) == 1
 
 
+def test_source_references_are_optional_and_verified(buggy_model):
+    requirements = "[REQ-1] Заявка после согласования может быть исполнена."
+    buggy_model["transitions"][0]["source_reference"] = {
+        "id": "REQ-1",
+        "fragment": "Заявка после согласования может быть исполнена.",
+    }
+    model = validate_model(buggy_model)
+
+    assert validate_source_references(model, requirements) == model
+    assert "source_reference" not in validate_model(
+        {**buggy_model, "transitions": [
+            {key: value for key, value in transition.items() if key != "source_reference"}
+            for transition in buggy_model["transitions"]
+        ]}
+    ).model_dump(mode="json")["transitions"][0]
+
+
+@pytest.mark.parametrize(
+    "reference",
+    [
+        {"id": "REQ-404", "fragment": "Заявка после согласования может быть исполнена."},
+        {"id": "REQ-1", "fragment": "выдуманный фрагмент"},
+    ],
+)
+def test_unconfirmed_source_references_are_rejected(buggy_model, reference):
+    buggy_model["properties"][0]["source_reference"] = reference
+    model = validate_model(buggy_model)
+
+    with pytest.raises(SourceReferenceValidationError):
+        validate_source_references(model, "[REQ-1] Заявка после согласования может быть исполнена.")
+
+
+def test_counterexample_links_property_and_multiple_transitions(buggy_model):
+    buggy_model["transitions"][0]["source_reference"] = {
+        "id": "REQ-1",
+        "fragment": "approve",
+    }
+    buggy_model["transitions"][1]["source_reference"] = {
+        "id": "REQ-2",
+        "fragment": "cancel",
+    }
+    buggy_model["properties"][0]["source_reference"] = {
+        "id": "REQ-3",
+        "fragment": "forbidden",
+    }
+    model = validate_model(buggy_model)
+    result = VerificationResult(
+        status=VerificationStatus.PROPERTY_VIOLATED,
+        violated_property="NoExecutedAfterCancel",
+        counterexample=[
+            TraceState(number=1, values={}, transition=None),
+            TraceState(number=2, values={}, transition="Approve"),
+            TraceState(number=3, values={}, transition="Cancel"),
+        ],
+    )
+
+    linked = attach_result_references(result, model)
+
+    assert [reference.id for reference in linked.related_requirements] == ["REQ-3", "REQ-1", "REQ-2"]
+    assert [reference.id for reference in linked.counterexample[1].related_requirements] == ["REQ-1"]
+    assert [reference.id for reference in linked.counterexample[2].related_requirements] == ["REQ-2"]
+
+
+def test_source_references_do_not_change_tla_generation(buggy_model):
+    with_references = deepcopy(buggy_model)
+    with_references["transitions"][0]["source_reference"] = {
+        "id": "REQ-1",
+        "fragment": "approve",
+    }
+    with_references["properties"][0]["source_reference"] = {
+        "id": "REQ-2",
+        "fragment": "forbidden",
+    }
+
+    assert generate_tla(with_references) == generate_tla(buggy_model)
+
+
 def test_bounded_integer_domain_and_effect(buggy_model):
     buggy_model["variables"].append({"name": "count", "type": "integer", "min": 0, "max": 2})
     buggy_model["initial"]["count"] = 0
@@ -179,7 +262,7 @@ def test_invariant_and_negation(buggy_model):
         {"name": "Safe", "type": "invariant", "expression": {"not": {"var": "cancelled"}}}
     ]
     result = generate_tla(buggy_model)
-    assert "Property_Safe == ~(v_cancelled)" in result.tla
+    assert "Property_Safe == (~(v_cancelled)) /\\ TypeOK" in result.tla
     assert "INVARIANT Property_Safe" in result.cfg
 
 

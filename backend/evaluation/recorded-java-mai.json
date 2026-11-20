@@ -1,0 +1,1048 @@
+{
+  "started_at": "2026-11-15T06:53:50.162280+00:00",
+  "generator_requested": "qwen3.6-35b-a3b",
+  "reviewer_requested": "deepseek-v4.1-flash",
+  "runs": [
+    {
+      "id": "application_buggy",
+      "expected": "BLOCKED",
+      "analysis": {
+        "case_id": "ec61cb2292864f60b58d30455a86268f",
+        "model_fingerprint": "d0e95ea4214db69da3ad335eb1deb9e7654c3bd6971b214dda1eb13e280f4d5b",
+        "analysis": {
+          "requirements": "Заявка: Cancel сохраняет approved; Execute проверяет approved. Исполнение отменённой заявки запрещено.",
+          "behavioral_model": {
+            "variables": [
+              {
+                "name": "status",
+                "type": "enum",
+                "values": [
+                  "Created",
+                  "Approved",
+                  "Cancelled",
+                  "Executed"
+                ]
+              },
+              {
+                "name": "approved",
+                "type": "boolean"
+              },
+              {
+                "name": "cancelled",
+                "type": "boolean"
+              }
+            ],
+            "initial": {
+              "status": "Created",
+              "approved": false,
+              "cancelled": false
+            },
+            "transitions": [
+              {
+                "name": "Approve",
+                "guard": {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Created"
+                  ]
+                },
+                "effects": [
+                  {
+                    "set": [
+                      "status",
+                      "Approved"
+                    ]
+                  },
+                  {
+                    "set": [
+                      "approved",
+                      true
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Cancel",
+                "guard": {
+                  "in": [
+                    {
+                      "var": "status"
+                    },
+                    [
+                      "Created",
+                      "Approved"
+                    ]
+                  ]
+                },
+                "effects": [
+                  {
+                    "set": [
+                      "status",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "set": [
+                      "cancelled",
+                      true
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Execute",
+                "guard": {
+                  "eq": [
+                    {
+                      "var": "approved"
+                    },
+                    true
+                  ]
+                },
+                "effects": [
+                  {
+                    "set": [
+                      "status",
+                      "Executed"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "properties": [
+              {
+                "name": "NoExecutedAfterCancel",
+                "type": "forbidden_state",
+                "expression": {
+                  "and": [
+                    {
+                      "eq": [
+                        {
+                          "var": "status"
+                        },
+                        "Executed"
+                      ]
+                    },
+                    {
+                      "eq": [
+                        {
+                          "var": "cancelled"
+                        },
+                        true
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "verification_result": {
+            "status": "PROPERTY_VIOLATED",
+            "message": null,
+            "violated_property": "NoExecutedAfterCancel",
+            "counterexample": [
+              {
+                "number": 1,
+                "values": {
+                  "cancelled": false,
+                  "approved": false,
+                  "status": "Created"
+                },
+                "transition": null,
+                "tlc_label": "Initial predicate",
+                "related_requirements": []
+              },
+              {
+                "number": 2,
+                "values": {
+                  "cancelled": false,
+                  "approved": true,
+                  "status": "Approved"
+                },
+                "transition": "Approve",
+                "tlc_label": "Step_Approve line 18, col 3 to line 21, col 30 of module Model",
+                "related_requirements": []
+              },
+              {
+                "number": 3,
+                "values": {
+                  "cancelled": true,
+                  "approved": true,
+                  "status": "Cancelled"
+                },
+                "transition": "Cancel",
+                "tlc_label": "Step_Cancel line 24, col 3 to line 27, col 29 of module Model",
+                "related_requirements": []
+              },
+              {
+                "number": 4,
+                "values": {
+                  "cancelled": true,
+                  "approved": true,
+                  "status": "Executed"
+                },
+                "transition": "Execute",
+                "tlc_label": "Step_Execute line 30, col 3 to line 32, col 42 of module Model",
+                "related_requirements": []
+              }
+            ],
+            "witness": [],
+            "deadlock_path": [],
+            "property_results": [],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 9,
+              "distinct_states": 6,
+              "queued_states": 1,
+              "graph_depth": 4
+            },
+            "exit_code": 12
+          },
+          "counterexample": [
+            {
+              "number": 1,
+              "values": {
+                "cancelled": false,
+                "approved": false,
+                "status": "Created"
+              },
+              "transition": null,
+              "tlc_label": "Initial predicate",
+              "related_requirements": []
+            },
+            {
+              "number": 2,
+              "values": {
+                "cancelled": false,
+                "approved": true,
+                "status": "Approved"
+              },
+              "transition": "Approve",
+              "tlc_label": "Step_Approve line 18, col 3 to line 21, col 30 of module Model",
+              "related_requirements": []
+            },
+            {
+              "number": 3,
+              "values": {
+                "cancelled": true,
+                "approved": true,
+                "status": "Cancelled"
+              },
+              "transition": "Cancel",
+              "tlc_label": "Step_Cancel line 24, col 3 to line 27, col 29 of module Model",
+              "related_requirements": []
+            },
+            {
+              "number": 4,
+              "values": {
+                "cancelled": true,
+                "approved": true,
+                "status": "Executed"
+              },
+              "transition": "Execute",
+              "tlc_label": "Step_Execute line 30, col 3 to line 32, col 42 of module Model",
+              "related_requirements": []
+            }
+          ],
+          "related_requirements": [],
+          "explanation": "Контрольная модель приёмки; интерпретация текста здесь зафиксирована заранее."
+        },
+        "accepted": false
+      },
+      "blocked": true,
+      "elapsed_seconds": 1.13
+    },
+    {
+      "id": "application_fixed",
+      "expected": "READY",
+      "analysis": {
+        "case_id": "e9c71721579c4f3ea65c1f54786755b1",
+        "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+        "analysis": {
+          "requirements": "Заявка: Cancel сбрасывает approved=false; Execute требует approved. Исполнение отменённой заявки запрещено.",
+          "behavioral_model": {
+            "variables": [
+              {
+                "name": "status",
+                "type": "enum",
+                "values": [
+                  "Created",
+                  "Approved",
+                  "Cancelled",
+                  "Executed"
+                ]
+              },
+              {
+                "name": "approved",
+                "type": "boolean"
+              },
+              {
+                "name": "cancelled",
+                "type": "boolean"
+              }
+            ],
+            "initial": {
+              "status": "Created",
+              "approved": false,
+              "cancelled": false
+            },
+            "transitions": [
+              {
+                "name": "Approve",
+                "guard": {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Created"
+                  ]
+                },
+                "effects": [
+                  {
+                    "set": [
+                      "status",
+                      "Approved"
+                    ]
+                  },
+                  {
+                    "set": [
+                      "approved",
+                      true
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Cancel",
+                "guard": {
+                  "in": [
+                    {
+                      "var": "status"
+                    },
+                    [
+                      "Created",
+                      "Approved"
+                    ]
+                  ]
+                },
+                "effects": [
+                  {
+                    "set": [
+                      "status",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "set": [
+                      "cancelled",
+                      true
+                    ]
+                  },
+                  {
+                    "set": [
+                      "approved",
+                      false
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Execute",
+                "guard": {
+                  "eq": [
+                    {
+                      "var": "approved"
+                    },
+                    true
+                  ]
+                },
+                "effects": [
+                  {
+                    "set": [
+                      "status",
+                      "Executed"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "properties": [
+              {
+                "name": "NoExecutedAfterCancel",
+                "type": "forbidden_state",
+                "expression": {
+                  "and": [
+                    {
+                      "eq": [
+                        {
+                          "var": "status"
+                        },
+                        "Executed"
+                      ]
+                    },
+                    {
+                      "eq": [
+                        {
+                          "var": "cancelled"
+                        },
+                        true
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "verification_result": {
+            "status": "PROPERTY_HOLDS",
+            "message": null,
+            "violated_property": null,
+            "counterexample": [],
+            "witness": [],
+            "deadlock_path": [],
+            "property_results": [],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 10,
+              "distinct_states": 4,
+              "queued_states": 0,
+              "graph_depth": 3
+            },
+            "exit_code": 0
+          },
+          "counterexample": null,
+          "related_requirements": [],
+          "explanation": "Контрольная модель приёмки; интерпретация текста здесь зафиксирована заранее."
+        },
+        "accepted": false
+      },
+      "report": {
+        "case_id": "e9c71721579c4f3ea65c1f54786755b1",
+        "status": "READY",
+        "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+        "artifact_fingerprint": "593b217de19fcf4a78d3ea9c306c5415fad9922456b899aec93b7877464dbfc8",
+        "artifact": {
+          "files": [
+            {
+              "path": "Machine.java",
+              "content": "import java.util.Scanner;\n\npublic class Machine {\n    private static String status = \"Created\";\n    private static boolean approved = false;\n    private static boolean cancelled = false;\n\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        System.out.println(\"READY\");\n        while (sc.hasNextLine()) {\n            String line = sc.nextLine().trim();\n            if (line.equals(\"SNAPSHOT\")) {\n                printState();\n            } else if (line.startsWith(\"FIRE \")) {\n                String event = line.substring(5).trim();\n                if (fire(event)) {\n                    System.out.println(\"APPLIED\");\n                    printState();\n                } else {\n                    System.out.println(\"REJECTED\");\n                }\n            }\n        }\n    }\n\n    private static void printState() {\n        System.out.println(\"STATE status=\\\"\" + status + \"\\\";approved=\" + approved + \";cancelled=\" + cancelled);\n    }\n\n    private static boolean fire(String event) {\n        switch (event) {\n            case \"Approve\":\n                if (status.equals(\"Created\")) {\n                    status = \"Approved\";\n                    approved = true;\n                    return true;\n                }\n                return false;\n            case \"Cancel\":\n                if (status.equals(\"Created\") || status.equals(\"Approved\")) {\n                    status = \"Cancelled\";\n                    cancelled = true;\n                    approved = false;\n                    return true;\n                }\n                return false;\n            case \"Execute\":\n                if (approved) {\n                    status = \"Executed\";\n                    return true;\n                }\n                return false;\n            default:\n                return false;\n        }\n    }\n}\n"
+            }
+          ],
+          "main_class": "Machine",
+          "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+          "instruction": "READY на старте. SNAPSHOT выводит STATE со всеми переменными (enum в кавычках, boolean true/false). FIRE Event: APPLIED+STATE при истинном guard, REJECTED при ложном или неизвестном событии. EOF завершает программу.",
+          "generator_model": "qwen3.6-35b-a3b",
+          "requested_generator_model": "qwen3.6-35b-a3b"
+        },
+        "review": {
+          "approved": true,
+          "findings": [],
+          "reviewer_model": "deepseek-v4.1-flash",
+          "artifact_fingerprint": "593b217de19fcf4a78d3ea9c306c5415fad9922456b899aec93b7877464dbfc8",
+          "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+          "message": "Java-машина соответствует BehavioralModel: начальное состояние Created/false/false, READY на старте, SNAPSHOT печатает одну строку STATE со всеми тремя переменными и enum в кавычках. Guards Approve (status=Created), Cancel (Created|Approved), Execute (approved=true) совпадают с моделью; effects применяются одновременно по старому состоянию и не читают изменяемые переменные, остальные переменные сохраняются. Cancel сбрасывает approved=false и ставит cancelled=true, поэтому Execute после отмены отклоняется (REJECTED без изменения состояния), свойство NoExecutedAfterCancel не нарушается. Неизвестные события и ложные guards дают REJECTED без изменения состояния, EOF завершает цикл. Внешних зависимостей, файлов, сети и subprocess нет."
+        },
+        "compile_and_check": {
+          "status": "PASSED",
+          "message": null,
+          "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+          "artifact_fingerprint": "593b217de19fcf4a78d3ea9c306c5415fad9922456b899aec93b7877464dbfc8",
+          "compilation": "PASSED",
+          "coverage": "COMPLETE_STATE_EVENT",
+          "checks_run": 16,
+          "failed_check": null,
+          "stdout": "READY\nSTATE status=\"Created\";approved=false;cancelled=false\nAPPLIED\nSTATE status=\"Approved\";approved=true;cancelled=false\nAPPLIED\nSTATE status=\"Executed\";approved=true;cancelled=false\nREJECTED\nSTATE status=\"Executed\";approved=true;cancelled=false",
+          "stderr": "",
+          "exit_code": 0
+        },
+        "message": "Java-артефакт прошёл reviewer и поведенческую проверку"
+      },
+      "elapsed_seconds": 35.45
+    },
+    {
+      "id": "cycle_terminal",
+      "expected": "READY",
+      "analysis": {
+        "case_id": "9b8e302623f847fdb4f625455bb71372",
+        "model_fingerprint": "a2034be6a9582655e787f6d267561931c730ff99540dfd8de4bab186caa92a83",
+        "analysis": {
+          "requirements": "Изначально Ready. Stay сохраняет Ready, Finish переводит Ready в Done. Done — явно допустимое завершение. Проверь достижимость Done и отсутствие остальных блокировок.",
+          "behavioral_model": {
+            "variables": [
+              {
+                "name": "status",
+                "type": "enum",
+                "values": [
+                  "Ready",
+                  "Done"
+                ]
+              }
+            ],
+            "initial": {
+              "status": "Ready"
+            },
+            "transitions": [
+              {
+                "name": "Stay",
+                "guard": {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Ready"
+                  ]
+                },
+                "effects": [
+                  {
+                    "set": [
+                      "status",
+                      "Ready"
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Finish",
+                "guard": {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Ready"
+                  ]
+                },
+                "effects": [
+                  {
+                    "set": [
+                      "status",
+                      "Done"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "properties": [
+              {
+                "name": "ReachDone",
+                "type": "reachable",
+                "expression": {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Done"
+                  ]
+                }
+              },
+              {
+                "name": "NoDeadlock",
+                "type": "deadlock_free",
+                "terminal_states": {
+                  "eq": [
+                    {
+                      "var": "status"
+                    },
+                    "Done"
+                  ]
+                }
+              }
+            ]
+          },
+          "verification_result": {
+            "status": "PROPERTY_HOLDS",
+            "message": "ReachDone: PROPERTY_HOLDS; NoDeadlock: PROPERTY_HOLDS",
+            "violated_property": null,
+            "counterexample": [],
+            "witness": [],
+            "deadlock_path": [],
+            "property_results": [
+              {
+                "property_name": "ReachDone",
+                "property_type": "reachable",
+                "status": "PROPERTY_HOLDS",
+                "message": "Цель достижима в конечной модели; путь приведён в witness.",
+                "counterexample": [],
+                "witness": [
+                  {
+                    "number": 1,
+                    "values": {
+                      "status": "Ready"
+                    },
+                    "transition": null,
+                    "tlc_label": "Initial predicate",
+                    "related_requirements": []
+                  },
+                  {
+                    "number": 2,
+                    "values": {
+                      "status": "Done"
+                    },
+                    "transition": "Finish",
+                    "tlc_label": "Step_Finish line 18, col 3 to line 19, col 23 of module Model",
+                    "related_requirements": []
+                  }
+                ],
+                "deadlock_path": [],
+                "related_requirements": [],
+                "statistics": {
+                  "generated_states": 3,
+                  "distinct_states": 2,
+                  "queued_states": 0,
+                  "graph_depth": 2
+                }
+              },
+              {
+                "property_name": "NoDeadlock",
+                "property_type": "deadlock_free",
+                "status": "PROPERTY_HOLDS",
+                "message": "В полностью исследованной конечной модели блокировок вне допустимого завершения не найдено.",
+                "counterexample": [],
+                "witness": [],
+                "deadlock_path": [],
+                "related_requirements": [],
+                "statistics": {
+                  "generated_states": 5,
+                  "distinct_states": 2,
+                  "queued_states": 0,
+                  "graph_depth": 2
+                }
+              }
+            ],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": null,
+              "distinct_states": null,
+              "queued_states": null,
+              "graph_depth": null
+            },
+            "exit_code": 12
+          },
+          "counterexample": null,
+          "related_requirements": [],
+          "explanation": "Контрольная модель приёмки; интерпретация текста здесь зафиксирована заранее."
+        },
+        "accepted": false
+      },
+      "report": {
+        "case_id": "9b8e302623f847fdb4f625455bb71372",
+        "status": "READY",
+        "model_fingerprint": "a2034be6a9582655e787f6d267561931c730ff99540dfd8de4bab186caa92a83",
+        "artifact_fingerprint": "a1fc79cc758b62469f1f093ae747223f909a145a4fd62aee831800addfb5afad",
+        "artifact": {
+          "files": [
+            {
+              "path": "Machine.java",
+              "content": "import java.util.Scanner;\n\npublic class Machine {\n\n    enum Status { Ready, Done }\n\n    static Status status = Status.Ready;\n\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        System.out.println(\"READY\");\n        System.out.flush();\n        while (sc.hasNextLine()) {\n            String line = sc.nextLine().trim();\n            if (line.equals(\"SNAPSHOT\")) {\n                printState();\n            } else if (line.startsWith(\"FIRE \")) {\n                String event = line.substring(5).trim();\n                fire(event);\n            }\n            System.out.flush();\n        }\n    }\n\n    static void printState() {\n        System.out.println(\"STATE status=\\\"\" + status.name() + \"\\\"\");\n    }\n\n    static void fire(String event) {\n        if (event.equals(\"Stay\") && status == Status.Ready) {\n            status = Status.Ready;\n            System.out.println(\"APPLIED\");\n            printState();\n        } else if (event.equals(\"Finish\") && status == Status.Ready) {\n            status = Status.Done;\n            System.out.println(\"APPLIED\");\n            printState();\n        } else {\n            System.out.println(\"REJECTED\");\n        }\n    }\n}\n"
+            }
+          ],
+          "main_class": "Machine",
+          "model_fingerprint": "a2034be6a9582655e787f6d267561931c730ff99540dfd8de4bab186caa92a83",
+          "instruction": "Protocol: stdin lines. After start prints READY. SNAPSHOT prints one STATE line with all variables. FIRE Event prints APPLIED+STATE if guard true, else REJECTED. Unknown events always REJECTED. EOF terminates.",
+          "generator_model": "qwen3.6-35b-a3b",
+          "requested_generator_model": "qwen3.6-35b-a3b"
+        },
+        "review": {
+          "approved": true,
+          "findings": [],
+          "reviewer_model": "deepseek-v4.1-flash",
+          "artifact_fingerprint": "a1fc79cc758b62469f1f093ae747223f909a145a4fd62aee831800addfb5afad",
+          "model_fingerprint": "a2034be6a9582655e787f6d267561931c730ff99540dfd8de4bab186caa92a83",
+          "message": "Java-машина соответствует BehavioralModel: начальное состояние Ready, Stay и Finish применимы только из Ready и дают APPLIED+STATE (status=\"Ready\"/\"Done\"), ложные guards и неизвестные события дают REJECTED без изменения состояния, SNAPSHOT печатает одну строку STATE со всеми переменными (enum как JSON-строка), READY выводится после старта, EOF завершает цикл. Done достижим через Finish и является терминальным, что согласуется с terminal_states модели; остальных блокировок нет."
+        },
+        "compile_and_check": {
+          "status": "PASSED",
+          "message": null,
+          "model_fingerprint": "a2034be6a9582655e787f6d267561931c730ff99540dfd8de4bab186caa92a83",
+          "artifact_fingerprint": "a1fc79cc758b62469f1f093ae747223f909a145a4fd62aee831800addfb5afad",
+          "compilation": "PASSED",
+          "coverage": "COMPLETE_STATE_EVENT",
+          "checks_run": 6,
+          "failed_check": null,
+          "stdout": "READY\nSTATE status=\"Ready\"\nAPPLIED\nSTATE status=\"Done\"\nREJECTED\nSTATE status=\"Done\"",
+          "stderr": "",
+          "exit_code": 0
+        },
+        "message": "Java-артефакт прошёл reviewer и поведенческую проверку"
+      },
+      "elapsed_seconds": 23.92
+    },
+    {
+      "id": "integer_swap",
+      "expected": "READY",
+      "analysis": {
+        "case_id": "4d77e93d5678408ca15e2dd843a25738",
+        "model_fingerprint": "fc27727474b1291397f29772fcc83120b0f1b55df4a59f6e11cb15dd6e254412",
+        "analysis": {
+          "requirements": "Integer x,y в 0..1, initial x=0,y=1; flag=false сохраняется. Swap при x=0 и not flag одновременно x:=y,y:=x. Reset при x=1 возвращает x=0,y=1. Проверь достижимость x=1.",
+          "behavioral_model": {
+            "variables": [
+              {
+                "name": "x",
+                "type": "integer",
+                "min": 0,
+                "max": 1
+              },
+              {
+                "name": "y",
+                "type": "integer",
+                "min": 0,
+                "max": 1
+              },
+              {
+                "name": "flag",
+                "type": "boolean"
+              }
+            ],
+            "initial": {
+              "x": 0,
+              "y": 1,
+              "flag": false
+            },
+            "transitions": [
+              {
+                "name": "Swap",
+                "guard": {
+                  "and": [
+                    {
+                      "eq": [
+                        {
+                          "var": "x"
+                        },
+                        0
+                      ]
+                    },
+                    {
+                      "not": {
+                        "var": "flag"
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "set": [
+                      "x",
+                      {
+                        "var": "y"
+                      }
+                    ]
+                  },
+                  {
+                    "set": [
+                      "y",
+                      {
+                        "var": "x"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Reset",
+                "guard": {
+                  "eq": [
+                    {
+                      "var": "x"
+                    },
+                    1
+                  ]
+                },
+                "effects": [
+                  {
+                    "set": [
+                      "x",
+                      0
+                    ]
+                  },
+                  {
+                    "set": [
+                      "y",
+                      1
+                    ]
+                  }
+                ]
+              }
+            ],
+            "properties": [
+              {
+                "name": "ReachOne",
+                "type": "reachable",
+                "expression": {
+                  "eq": [
+                    {
+                      "var": "x"
+                    },
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          "verification_result": {
+            "status": "PROPERTY_HOLDS",
+            "message": "ReachOne: PROPERTY_HOLDS",
+            "violated_property": null,
+            "counterexample": [],
+            "witness": [
+              {
+                "number": 1,
+                "values": {
+                  "flag": false,
+                  "x": 0,
+                  "y": 1
+                },
+                "transition": null,
+                "tlc_label": "Initial predicate",
+                "related_requirements": []
+              },
+              {
+                "number": 2,
+                "values": {
+                  "flag": false,
+                  "x": 1,
+                  "y": 0
+                },
+                "transition": "Swap",
+                "tlc_label": "Step_Swap line 18, col 3 to line 21, col 25 of module Model",
+                "related_requirements": []
+              }
+            ],
+            "deadlock_path": [],
+            "property_results": [
+              {
+                "property_name": "ReachOne",
+                "property_type": "reachable",
+                "status": "PROPERTY_HOLDS",
+                "message": "Цель достижима в конечной модели; путь приведён в witness.",
+                "counterexample": [],
+                "witness": [
+                  {
+                    "number": 1,
+                    "values": {
+                      "flag": false,
+                      "x": 0,
+                      "y": 1
+                    },
+                    "transition": null,
+                    "tlc_label": "Initial predicate",
+                    "related_requirements": []
+                  },
+                  {
+                    "number": 2,
+                    "values": {
+                      "flag": false,
+                      "x": 1,
+                      "y": 0
+                    },
+                    "transition": "Swap",
+                    "tlc_label": "Step_Swap line 18, col 3 to line 21, col 25 of module Model",
+                    "related_requirements": []
+                  }
+                ],
+                "deadlock_path": [],
+                "related_requirements": [],
+                "statistics": {
+                  "generated_states": 2,
+                  "distinct_states": 2,
+                  "queued_states": 0,
+                  "graph_depth": 2
+                }
+              }
+            ],
+            "related_requirements": [],
+            "statistics": {
+              "generated_states": 2,
+              "distinct_states": 2,
+              "queued_states": 0,
+              "graph_depth": 2
+            },
+            "exit_code": 12
+          },
+          "counterexample": null,
+          "related_requirements": [],
+          "explanation": "Контрольная модель приёмки; интерпретация текста здесь зафиксирована заранее."
+        },
+        "accepted": false
+      },
+      "report": {
+        "case_id": "4d77e93d5678408ca15e2dd843a25738",
+        "status": "READY",
+        "model_fingerprint": "fc27727474b1291397f29772fcc83120b0f1b55df4a59f6e11cb15dd6e254412",
+        "artifact_fingerprint": "d6cf85b6e4aec29f4e97b438280b199ad30dd619be4173b06642e6d87dd2a709",
+        "artifact": {
+          "files": [
+            {
+              "path": "Machine.java",
+              "content": "import java.util.Scanner;\n\npublic class Machine {\n    static int x = 0;\n    static int y = 1;\n    static boolean flag = false;\n\n    static void printState() {\n        System.out.println(\"STATE x=\" + x + \";y=\" + y + \";flag=\" + flag);\n    }\n\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        System.out.println(\"READY\");\n        while (sc.hasNextLine()) {\n            String line = sc.nextLine().trim();\n            if (line.equals(\"SNAPSHOT\")) {\n                printState();\n            } else if (line.startsWith(\"FIRE \")) {\n                String event = line.substring(5).trim();\n                if (event.equals(\"Swap\")) {\n                    if (x == 0 && !flag) {\n                        int newX = y;\n                        int newY = x;\n                        x = newX;\n                        y = newY;\n                        System.out.println(\"APPLIED\");\n                        printState();\n                    } else {\n                        System.out.println(\"REJECTED\");\n                    }\n                } else if (event.equals(\"Reset\")) {\n                    if (x == 1) {\n                        x = 0;\n                        y = 1;\n                        System.out.println(\"APPLIED\");\n                        printState();\n                    } else {\n                        System.out.println(\"REJECTED\");\n                    }\n                } else {\n                    System.out.println(\"REJECTED\");\n                }\n            }\n        }\n    }\n}\n"
+            }
+          ],
+          "main_class": "Machine",
+          "model_fingerprint": "fc27727474b1291397f29772fcc83120b0f1b55df4a59f6e11cb15dd6e254412",
+          "instruction": "stdin/stdout: READY на старте; SNAPSHOT->STATE x=..;y=..;flag=..; FIRE Swap (guard x==0 AND !flag, swap x,y) или FIRE Reset (guard x==1, x:=0,y:=1) -> APPLIED+STATE либо REJECTED; неизвестное событие REJECTED; EOF завершает.",
+          "generator_model": "qwen3.6-35b-a3b",
+          "requested_generator_model": "qwen3.6-35b-a3b"
+        },
+        "review": {
+          "approved": true,
+          "findings": [],
+          "reviewer_model": "deepseek-v4.1-flash",
+          "artifact_fingerprint": "d6cf85b6e4aec29f4e97b438280b199ad30dd619be4173b06642e6d87dd2a709",
+          "model_fingerprint": "fc27727474b1291397f29772fcc83120b0f1b55df4a59f6e11cb15dd6e254412",
+          "message": "Java-машина соответствует BehavioralModel: начальное состояние x=0,y=1,flag=false; Swap с guard x==0 && !flag и одновременной заменой через old-значения (newX=y,newY=x); Reset с guard x==1 и x:=0,y:=1; flag не изменяется; ложные guards и неизвестные события дают REJECTED без изменения состояния; протокол READY/SNAPSHOT/FIRE/APPLIED/REJECTED и завершение по EOF корректны; STATE содержит все переменные. x=1 достижимо (Swap из начального состояния). Существенных дефектов не найдено."
+        },
+        "compile_and_check": {
+          "status": "PASSED",
+          "message": null,
+          "model_fingerprint": "fc27727474b1291397f29772fcc83120b0f1b55df4a59f6e11cb15dd6e254412",
+          "artifact_fingerprint": "d6cf85b6e4aec29f4e97b438280b199ad30dd619be4173b06642e6d87dd2a709",
+          "compilation": "PASSED",
+          "coverage": "COMPLETE_STATE_EVENT",
+          "checks_run": 6,
+          "failed_check": null,
+          "stdout": "READY\nSTATE x=0;y=1;flag=false\nAPPLIED\nSTATE x=1;y=0;flag=false\nREJECTED\nSTATE x=1;y=0;flag=false",
+          "stderr": "",
+          "exit_code": 0
+        },
+        "message": "Java-артефакт прошёл reviewer и поведенческую проверку"
+      },
+      "elapsed_seconds": 19.65
+    }
+  ],
+  "negative_fixtures": [
+    {
+      "id": "syntax",
+      "artifact": {
+        "files": [
+          {
+            "path": "Machine.java",
+            "content": "public class Machine { syntax error }"
+          }
+        ],
+        "main_class": "Machine",
+        "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+        "instruction": null,
+        "generator_model": "deterministic-negative-fixture",
+        "requested_generator_model": null
+      },
+      "review": {
+        "approved": false,
+        "findings": [
+          {
+            "severity": "ERROR",
+            "message": "Machine.java содержит синтаксическую ошибку (текст «syntax error» внутри тела класса) и вообще не реализует машину состояний: нет полей status/approved/cancelled, нет обработки READY, SNAPSHOT, FIRE, нет переходов Approve/Cancel/Execute и вывода STATE/APPLIED/REJECTED. Артефакт не является компилируемой Java-программой, поэтому требования заявки (Cancel сбрасывает approved=false, Execute требует approved, запрет исполнения отменённой заявки) не выполнены.",
+            "file": "Machine.java",
+            "line": 1,
+            "rule": null,
+            "transition": null
+          }
+        ],
+        "reviewer_model": "deepseek-v4.1-flash",
+        "artifact_fingerprint": "88434151ab730cfbcd13d77661b9962aab47fd40fcd81ed1eb034594fbac3e04",
+        "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+        "message": "Артефакт — заведомо невалидный Java-исходник с синтаксической ошибкой; машина состояний, протокол и инварианты модели не реализованы, ревью не одобрено."
+      },
+      "check": {
+        "status": "COMPILE_ERROR",
+        "message": "javac rejected the generated sources",
+        "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+        "artifact_fingerprint": "88434151ab730cfbcd13d77661b9962aab47fd40fcd81ed1eb034594fbac3e04",
+        "compilation": "FAILED",
+        "coverage": "NOT_COMPLETED",
+        "checks_run": 0,
+        "failed_check": null,
+        "stdout": "",
+        "stderr": "/sources/Machine.java:1: error: ';' expected\npublic class Machine { syntax error }\n                                   ^\n1 error\n",
+        "exit_code": 1
+      },
+      "elapsed_seconds": 7.74
+    },
+    {
+      "id": "removed_guard",
+      "artifact": {
+        "files": [
+          {
+            "path": "Machine.java",
+            "content": "\nimport java.io.BufferedReader;\nimport java.io.InputStreamReader;\n\npublic class Machine {\n  static String status = \"Created\";\n  static boolean approved = false;\n  static boolean cancelled = false;\n\n  static void state() {\n    System.out.println(\"STATE status=\" + status + \";approved=\" + approved + \";cancelled=\" + cancelled);\n  }\n\n  public static void main(String[] args) throws Exception {\n    System.out.println(\"READY\");\n    BufferedReader input = new BufferedReader(new InputStreamReader(System.in));\n    String line;\n    while ((line = input.readLine()) != null) {\n      if (line.equals(\"SNAPSHOT\")) {\n        state();\n      } else if (line.startsWith(\"FIRE \")) {\n        String event = line.substring(5);\n        if (event.equals(\"Approve\") && status.equals(\"Created\")) {\n          status = \"Approved\";\n          approved = true;\n          System.out.println(\"APPLIED\");\n          state();\n        } else if (event.equals(\"Cancel\") && (status.equals(\"Created\") || status.equals(\"Approved\"))) {\n          status = \"Cancelled\";\n          cancelled = true;\n          approved = false;\n          System.out.println(\"APPLIED\");\n          state();\n        } else if (event.equals(\"Execute\")) {\n          status = \"Executed\";\n          System.out.println(\"APPLIED\");\n          state();\n        } else {\n          System.out.println(\"REJECTED\");\n        }\n      }\n      System.out.flush();\n    }\n  }\n}\n"
+          }
+        ],
+        "main_class": "Machine",
+        "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+        "instruction": null,
+        "generator_model": "deterministic-negative-fixture",
+        "requested_generator_model": null
+      },
+      "review_error": "MAIAPIError",
+      "check": {
+        "status": "BEHAVIOR_VIOLATED",
+        "message": "Java module does not match BehavioralModel",
+        "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+        "artifact_fingerprint": "e0288d29b831afa2885e2303a66da7ef9fa1e3fe671fbbef4225fa33be43e119",
+        "compilation": "PASSED",
+        "coverage": "NOT_COMPLETED",
+        "checks_run": 3,
+        "failed_check": "Execute",
+        "stdout": "READY\nSTATE status=Created;approved=false;cancelled=false\nAPPLIED\nSTATE status=Executed;approved=false;cancelled=false\nSTATE status=Executed;approved=false;cancelled=false",
+        "stderr": "",
+        "exit_code": 0
+      },
+      "elapsed_seconds": 92.36
+    },
+    {
+      "id": "wrong_effect",
+      "artifact": {
+        "files": [
+          {
+            "path": "Machine.java",
+            "content": "\nimport java.io.BufferedReader;\nimport java.io.InputStreamReader;\n\npublic class Machine {\n  static String status = \"Created\";\n  static boolean approved = false;\n  static boolean cancelled = false;\n\n  static void state() {\n    System.out.println(\"STATE status=\" + status + \";approved=\" + approved + \";cancelled=\" + cancelled);\n  }\n\n  public static void main(String[] args) throws Exception {\n    System.out.println(\"READY\");\n    BufferedReader input = new BufferedReader(new InputStreamReader(System.in));\n    String line;\n    while ((line = input.readLine()) != null) {\n      if (line.equals(\"SNAPSHOT\")) {\n        state();\n      } else if (line.startsWith(\"FIRE \")) {\n        String event = line.substring(5);\n        if (event.equals(\"Approve\") && status.equals(\"Created\")) {\n          status = \"Approved\";\n          approved = true;\n          System.out.println(\"APPLIED\");\n          state();\n        } else if (event.equals(\"Cancel\") && (status.equals(\"Created\") || status.equals(\"Approved\"))) {\n          status = \"Cancelled\";\n          cancelled = true;\n          approved = true;\n          System.out.println(\"APPLIED\");\n          state();\n        } else if (event.equals(\"Execute\") && approved) {\n          status = \"Executed\";\n          System.out.println(\"APPLIED\");\n          state();\n        } else {\n          System.out.println(\"REJECTED\");\n        }\n      }\n      System.out.flush();\n    }\n  }\n}\n"
+          }
+        ],
+        "main_class": "Machine",
+        "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+        "instruction": null,
+        "generator_model": "deterministic-negative-fixture",
+        "requested_generator_model": null
+      },
+      "review": {
+        "approved": false,
+        "findings": [
+          {
+            "severity": "ERROR",
+            "message": "В эффекте Cancel переменная approved выставляется в true, а по модели и требованию должна сбрасываться в false. Из-за этого после Cancel guard Execute (approved == true) остаётся истинным, и отменённая заявка может быть исполнена, что нарушает NoExecutedAfterCancel.",
+            "file": "Machine.java",
+            "line": 31,
+            "rule": "effect",
+            "transition": "Cancel"
+          },
+          {
+            "severity": "ERROR",
+            "message": "В STATE значение enum status выводится без кавычек (status=Created), тогда как протокол требует JSON-строку для enum (например, status=\"Created\").",
+            "file": "Machine.java",
+            "line": 11,
+            "rule": "protocol",
+            "transition": null
+          }
+        ],
+        "reviewer_model": "deepseek-v4.1-flash",
+        "artifact_fingerprint": "a8b72277f742dfb38ce793275930c495ab3b742149335ba67831766f78f82929",
+        "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+        "message": "Java не соответствует модели: Cancel не сбрасывает approved=false, поэтому возможно исполнение отменённой заявки; также нарушен формат enum в STATE."
+      },
+      "check": {
+        "status": "BEHAVIOR_VIOLATED",
+        "message": "Java module does not match BehavioralModel",
+        "model_fingerprint": "ab3828a8a08e0d7ce4f6acaed3180134459686c0580281aa40eb68821bccb3f8",
+        "artifact_fingerprint": "a8b72277f742dfb38ce793275930c495ab3b742149335ba67831766f78f82929",
+        "compilation": "PASSED",
+        "coverage": "NOT_COMPLETED",
+        "checks_run": 2,
+        "failed_check": "Cancel",
+        "stdout": "READY\nSTATE status=Created;approved=false;cancelled=false\nAPPLIED\nSTATE status=Cancelled;approved=true;cancelled=true\nSTATE status=Cancelled;approved=true;cancelled=true",
+        "stderr": "",
+        "exit_code": 0
+      },
+      "elapsed_seconds": 56.06
+    }
+  ]
+}

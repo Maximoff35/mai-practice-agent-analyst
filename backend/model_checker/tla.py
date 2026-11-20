@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from .schemas import BehavioralModel, BooleanVariable, EnumVariable, Expression, IntegerVariable
+from .schemas import INTEGER_MIN, BehavioralModel, BooleanVariable, EnumVariable, Expression, IntegerVariable
 from .validator import validate_model
 
 
@@ -20,6 +20,9 @@ def _literal(value: str | bool | int) -> str:
     if type(value) is bool:
         return "TRUE" if value else "FALSE"
     if type(value) is int:
+        # TLC parses unary minus separately from the positive numeral.
+        if value == INTEGER_MIN:
+            return "(-2147483647 - 1)"
         return str(value)
     if isinstance(value, str):
         return json.dumps(value, ensure_ascii=True)
@@ -54,16 +57,20 @@ def _domain(variable: EnumVariable | BooleanVariable | IntegerVariable) -> str:
         return "{" + ", ".join(_literal(value) for value in variable.values) + "}"
     if isinstance(variable, BooleanVariable):
         return "BOOLEAN"
-    return f"({variable.min}..{variable.max})"
+    return f"({_literal(variable.min)}..{_literal(variable.max)})"
 
 
 def _definition(name: str, clauses: list[str]) -> str:
     return f"{name} ==\n" + "\n".join(f"  /\\ {clause}" for clause in clauses)
 
 
-def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Model") -> TlaFiles:
+def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Model", *, max_states: int | None = None) -> TlaFiles:
     """Return .tla and .cfg contents for a fully validated finite model."""
     model = validate_model(model)
+    if max_states is not None and (type(max_states) is not int or not 1 <= max_states <= 2_147_483_647):
+        raise ValueError("max_states должен быть целым числом от 1 до 2147483647")
+    if len(model.properties) > 1 and any(prop.type in {"reachable", "deadlock_free"} for prop in model.properties):
+        raise ValueError("Модель с reachable/deadlock_free проверяйте через verify; отдельный модуль TLC требует одного свойства")
     if not module_name.isascii() or not module_name or not module_name[0].isalpha() or not all(
         char.isalnum() or char == "_" for char in module_name
     ):
@@ -73,7 +80,7 @@ def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Mo
     tuple_expr = "<<" + ", ".join(f"v_{name}" for name in names) + ">>"
     lines = [
         f"---- MODULE {module_name} ----",
-        "EXTENDS Integers",
+        "EXTENDS Integers, TLC" if max_states is not None else "EXTENDS Integers",
         "",
         "VARIABLES " + ", ".join(f"v_{name}" for name in names),
         f"vars == {tuple_expr}",
@@ -99,6 +106,8 @@ def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Mo
     # An explicit stutter action keeps the transition relation total. This lets
     # TLC check state properties even for terminal states without a deadlock error.
     choices = [f"Step_{transition.name}" for transition in model.transitions]
+    if any(prop.type == "deadlock_free" for prop in model.properties):
+        lines.extend(["", "BusinessNext ==\n" + "\n".join(f"  \\/ {choice}" for choice in choices)])
     choices.append("UNCHANGED vars")
     lines.extend(
         [
@@ -109,12 +118,25 @@ def generate_tla(model: BehavioralModel | dict[str, Any], module_name: str = "Mo
         ]
     )
     for prop in model.properties:
-        expression = compile_expression(prop.expression)
-        if prop.type == "forbidden_state":
+        if prop.type == "deadlock_free":
+            terminal = compile_expression(prop.terminal_states) if prop.terminal_states is not None else "FALSE"
+            expression = f"(({terminal}) \\/ (ENABLED BusinessNext)) /\\ TypeOK"
+        else:
+            expression = compile_expression(prop.expression)
+        if prop.type in {"forbidden_state", "reachable"}:
             expression = f"~({expression})"
+        if prop.type != "deadlock_free":
+            # TLC must evaluate even constant predicates at state level, so an
+            # initial violation produces a trace rather than a config error.
+            expression = f"({expression}) /\\ TypeOK"
         lines.extend(["", f"Property_{prop.name} == {expression}"])
     lines.extend(["", "====", ""])
 
     cfg_lines = ["SPECIFICATION Spec", "INVARIANT TypeOK"]
     cfg_lines.extend(f"INVARIANT Property_{prop.name}" for prop in model.properties)
+    if max_states is not None:
+        # A separate diagnostic invariant stops real TLC; it is never a user
+        # property or a constraint that could silently truncate the graph.
+        lines[-2:-2] = [f'MC_StateBudget == (TLCGet("distinct") < {max_states}) /\\ TypeOK', ""]
+        cfg_lines.append("INVARIANT MC_StateBudget")
     return TlaFiles("\n".join(lines), "\n".join(cfg_lines) + "\n")

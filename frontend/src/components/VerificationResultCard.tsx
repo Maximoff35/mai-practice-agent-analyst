@@ -1,5 +1,6 @@
 import type { VerificationResult, VerificationStatus } from "@/lib/types";
 import CounterexampleSteps from "@/components/CounterexampleSteps";
+import SourceReferences from "@/components/SourceReferences";
 
 const STATUS_INFO: Record<
   VerificationStatus,
@@ -52,14 +53,21 @@ export default function VerificationResultCard({
   explanation,
 }: VerificationResultCardProps) {
   const info = STATUS_INFO[result.status];
+  const propertyResults = result.property_results ?? [];
+  const hasIndividualResults = propertyResults.length > 0;
+  const title = hasIndividualResults && result.status === "PROPERTY_HOLDS"
+    ? "Все заданные свойства выполнены"
+    : hasIndividualResults && result.status === "PROPERTY_VIOLATED"
+      ? "Есть невыполненное свойство"
+      : info.title;
   const hasCounterexample = result.counterexample.length > 0;
   const statistics = Object.entries(result.statistics).filter(
     ([, value]) => value !== null && value !== undefined,
   );
 
   return (
-    <section className="flex flex-col gap-6 rounded-2xl border border-accent/15 bg-panel p-6">
-      <div className="flex items-baseline justify-between gap-4">
+    <section className="flex flex-col gap-6 rounded-2xl border border-accent/15 bg-panel p-4 sm:p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <h2 className="text-lg font-semibold text-foreground/90">
           Результат проверки
         </h2>
@@ -69,16 +77,16 @@ export default function VerificationResultCard({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-foreground/80">{info.title}</p>
+        <p className="text-sm text-foreground/85">{title}</p>
         {result.message && (
-          <p className="text-sm leading-relaxed text-foreground/60">
+          <p className="break-words text-sm leading-relaxed text-foreground/70">
             {result.message}
           </p>
         )}
         {result.violated_property && (
-          <p className="text-sm text-foreground/60">
+          <p className="break-words text-sm text-foreground/70">
             Нарушенное свойство:{" "}
-            <code className="text-foreground/80">
+            <code className="break-words text-foreground/85">
               {result.violated_property}
             </code>
           </p>
@@ -90,6 +98,10 @@ export default function VerificationResultCard({
         )}
       </div>
 
+      {!hasIndividualResults && (
+        <SourceReferences references={result.related_requirements} />
+      )}
+
       {statistics.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {statistics.map(([key, value]) => (
@@ -98,7 +110,7 @@ export default function VerificationResultCard({
               className="flex flex-col gap-1 rounded-lg border border-foreground/10 px-3 py-2"
             >
               <span className="text-lg text-foreground/90">{value}</span>
-              <span className="text-xs text-foreground/40">
+              <span className="text-xs text-foreground/50">
                 {STATISTICS_LABELS[key] ?? key}
               </span>
             </div>
@@ -106,14 +118,51 @@ export default function VerificationResultCard({
         </div>
       )}
 
-      {hasCounterexample ? (
+      {hasIndividualResults ? propertyResults.map((item) => (
+        <div key={item.property_name} className="flex flex-col gap-3 border-t border-foreground/10 pt-4">
+          <h3 className="break-words text-sm font-semibold">
+            {item.property_name} ({item.property_type}): {item.status}
+          </h3>
+          {item.message && <p className="text-sm text-foreground/70">{item.message}</p>}
+          {STATUS_INFO[item.status].warning && (
+            <p className="text-sm text-amber-400/80">{STATUS_INFO[item.status].warning}</p>
+          )}
+          <SourceReferences
+            references={item.related_requirements}
+            label="Требования свойства"
+          />
+          {item.witness.length > 0 && <CounterexampleSteps states={item.witness}
+            title={`Путь к цели: ${item.property_name}`}
+            description="Допустимая последовательность шагов до целевого состояния." />}
+          {item.counterexample.length > 0 && <CounterexampleSteps states={item.counterexample} markLast />}
+          {(item.deadlock_path?.length ?? 0) > 0 && <CounterexampleSteps states={item.deadlock_path ?? []}
+            title={`Путь к блокировке: ${item.property_name}`}
+            description="Последнее состояние не имеет разрешённых бизнес-переходов и не является допустимым завершением."
+            markLast />}
+        </div>
+      )) : hasCounterexample ? (
         <CounterexampleSteps
           states={result.counterexample}
           markLast={result.status === "PROPERTY_VIOLATED"}
         />
+      ) : (result.deadlock_path?.length ?? 0) > 0 ? (
+        <CounterexampleSteps states={result.deadlock_path ?? []}
+          title="Путь к блокировке"
+          description="Последнее состояние не имеет разрешённых бизнес-переходов и не является допустимым завершением."
+          markLast />
+      ) : (result.witness?.length ?? 0) > 0 ? (
+        <CounterexampleSteps
+          states={result.witness ?? []}
+          title={
+            result.violated_property
+              ? `Путь к цели: ${result.violated_property}`
+              : "Путь к цели"
+          }
+          description="Допустимая последовательность шагов до целевого состояния."
+        />
       ) : (
         result.status === "PROPERTY_HOLDS" && (
-          <p className="text-sm text-foreground/50">
+          <p className="text-sm text-foreground/60">
             Контрпример не найден в проверенной конечной модели. Это не
             доказывает корректность реальной системы или интерпретации требований.
           </p>
