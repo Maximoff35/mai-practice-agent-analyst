@@ -88,7 +88,7 @@
 [инструкции backend](../backend/README.md). Из `backend/`:
 
 ```powershell
-python evaluation/run_mai.py --model qwen3.6-35b-a3b --output ../.local/mai-evaluation.json
+python evaluation/run_mai.py --model qwen3.8-flash-next --output ../.local/mai-evaluation.json
 ```
 
 Можно добавить `--scenario application_buggy` для одного примера. Скрипт

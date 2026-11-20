@@ -30,7 +30,7 @@ class RecordedModelProvider:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--generator", default="qwen3.6-35b-a3b")
+    parser.add_argument("--generator", default="qwen3.8-27b")
     parser.add_argument("--reviewer", default="deepseek-v4.1-flash")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()

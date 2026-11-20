@@ -15,8 +15,8 @@
 
 ```powershell
 $env:LLM_PROVIDER='mai'
-$env:MAI_MODEL='qwen3.6-35b-a3b'
-$env:MAI_GENERATOR_MODEL='qwen3.6-35b-a3b'
+$env:MAI_MODEL='qwen3.8-flash-next'
+$env:MAI_GENERATOR_MODEL='qwen3.8-27b'
 $env:MAI_REVIEWER_MODEL='deepseek-v4.1-flash'
 $env:MODEL_CHECKER_JAVA=(Resolve-Path '.tools/java/bin/java.exe').Path
 $env:MODEL_CHECKER_TLA2TOOLS_JAR=(Resolve-Path '.tools/tla2tools.jar').Path
@@ -49,7 +49,7 @@ BACKEND_URL до запуска Next.js. Откройте localhost:3000. Не �
 3. **Принятие.** Откройте «Проверки Java», отметьте просмотр и нажмите
    «Принять эту модель». Генерация — отдельная кнопка, автоматически не запускается.
 4. **Разные свидетельства.** Нажмите «Сгенерировать и проверить Java».
-   Покажите фактические роли qwen3.6-35b-a3b и deepseek-v4.1-flash,
+   Покажите фактические роли qwen3.8-27b и deepseek-v4.1-flash,
    компиляцию PASSED и поведенческое покрытие. READY появляется только после
    всех обязательных этапов с совпадающими отпечатками.
 5. **Исходники.** Перейдите в «Java-код». Выберите файл, покажите сохранение

@@ -102,7 +102,7 @@ python -m pytest -q tests/test_llm_evaluation.py
 Для нового внешнего прогона с локальным ключом МАИ:
 
 ```powershell
-python evaluation/run_mai.py --model qwen3.6-35b-a3b --scenarios evaluation/interpretation-scenarios.json --output ../.local/interpretation-evaluation.json
+python evaluation/run_mai.py --model qwen3.8-flash-next --scenarios evaluation/interpretation-scenarios.json --output ../.local/interpretation-evaluation.json
 ```
 
 Новый прогон может отличаться; не обновляйте эталон без ручной проверки смысла.
