@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from .schemas import BehavioralModel, BooleanVariable, EnumVariable, Expression, IntegerVariable
+from .schemas import INTEGER_MIN, BehavioralModel, BooleanVariable, EnumVariable, Expression, IntegerVariable
 from .validator import validate_model
 
 
@@ -20,6 +20,9 @@ def _literal(value: str | bool | int) -> str:
     if type(value) is bool:
         return "TRUE" if value else "FALSE"
     if type(value) is int:
+        # TLC parses unary minus separately from the positive numeral.
+        if value == INTEGER_MIN:
+            return "(-2147483647 - 1)"
         return str(value)
     if isinstance(value, str):
         return json.dumps(value, ensure_ascii=True)
@@ -54,7 +57,7 @@ def _domain(variable: EnumVariable | BooleanVariable | IntegerVariable) -> str:
         return "{" + ", ".join(_literal(value) for value in variable.values) + "}"
     if isinstance(variable, BooleanVariable):
         return "BOOLEAN"
-    return f"({variable.min}..{variable.max})"
+    return f"({_literal(variable.min)}..{_literal(variable.max)})"
 
 
 def _definition(name: str, clauses: list[str]) -> str:

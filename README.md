@@ -15,7 +15,7 @@ Frontend на Next.js подключён к FastAPI через серверны�
 Для воспроизводимой демонстрации используйте `LLM_PROVIDER=fake`: он возвращает
 фиксированную модель заявки и шаблонное объяснение, но **проверку выполняет
 настоящий TLC**. Произвольные требования в этом режиме не поддерживаются.
-Для анализа через МАИ задайте `LLM_PROVIDER=mai`, `MAI_MODEL=qwen3.6-35b-a3b`
+Для анализа через МАИ задайте `LLM_PROVIDER=mai`, `MAI_MODEL=qwen3.8-flash-next`
 и локальный `MAI_API_KEY`. Альтернатива — `LLM_PROVIDER=openrouter`; подробности —
 в [инструкции backend](backend/README.md).
 
@@ -141,7 +141,7 @@ Python `check_behavior`: `Property.id`, `engine`, `property_id`,
 `eclipse-temurin:17-jdk`, локальный ключ МАИ и отдельные роли:
 
 ```powershell
-$env:MAI_GENERATOR_MODEL='qwen3.6-35b-a3b'
+$env:MAI_GENERATOR_MODEL='qwen3.8-27b'
 $env:MAI_REVIEWER_MODEL='deepseek-v4.1-flash'
 ```
 

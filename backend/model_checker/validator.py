@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from .schemas import (
+    INTEGER_MAX,
+    INTEGER_MIN,
     BehavioralModel,
     BooleanVariable,
     EnumVariable,
@@ -49,6 +51,8 @@ def _term(node: Any, variables: dict[str, Variable], path: str) -> TermType:
     if type(node) is bool:
         return TermType("boolean")
     if type(node) is int:
+        if not INTEGER_MIN <= node <= INTEGER_MAX:
+            _fail(path, f"integer literal must be between {INTEGER_MIN} and {INTEGER_MAX}")
         return TermType("integer")
     if isinstance(node, str):
         return TermType("enum")

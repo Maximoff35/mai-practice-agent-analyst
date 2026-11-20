@@ -76,8 +76,8 @@ PR #29 добавляет цитаты требований и явное уто
 Из `backend/`:
 
 ```powershell
-python evaluation/run_mai.py --model qwen3.6-35b-a3b --scenarios evaluation/deadlock-scenarios.json --output ../.local/mai-deadlock.json
-python evaluation/run_mai.py --model qwen3.6-35b-a3b --output ../.local/mai-regression.json
+python evaluation/run_mai.py --model qwen3.8-flash-next --scenarios evaluation/deadlock-scenarios.json --output ../.local/mai-deadlock.json
+python evaluation/run_mai.py --model qwen3.8-flash-next --output ../.local/mai-regression.json
 ```
 
 Команды выполняют реальные внешние запросы. Ключи и сырые технические логи

@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints,
 
 
 Identifier = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_]*$")]
+INTEGER_MIN = -(2**31)
+INTEGER_MAX = 2**31 - 1
 
 
 class StrictModel(BaseModel):
@@ -35,8 +37,8 @@ class BooleanVariable(StrictModel):
 class IntegerVariable(StrictModel):
     name: Identifier
     type: Literal["integer"]
-    min: int
-    max: int
+    min: int = Field(ge=INTEGER_MIN, le=INTEGER_MAX)
+    max: int = Field(ge=INTEGER_MIN, le=INTEGER_MAX)
 
 
 Variable = Annotated[
